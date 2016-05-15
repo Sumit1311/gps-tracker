@@ -3,7 +3,10 @@ function updateCoordinates(){
 		populateCoordinatesOnMap()
 		.then(function(){
 			updateCoordinates();
-		});
+		})
+		.catch(function(error){
+			console.log("Error : ",error);
+		})
 		
 	},REFRESH_INTERVAL);
 }
@@ -27,11 +30,10 @@ function getCoordinatesFromServer(){
 		url:"/getCoordinates",
 		type:"GET",
 		success:function(result,status,xhr){
-			var r=JSON.parse(result);
-			deferred.resolve(r);
+			deferred.resolve(result);
 		},
 		error:function(xhr,status,error){
-			console.log("error : ",error,status)
+			deferred.reject(error);
 		}
 	});
 	return deferred.promise;

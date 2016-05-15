@@ -20,8 +20,8 @@ var REFRESH_INTERVAL=10000,map,marker,mapIntervalObject,Q;
 </script>
 <script src="http://code.jquery.com/jquery-1.9.1.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/q.js/1.1.0/q.js"></script>
-<script src="initMap.js">    </script>
-<script src="getCoordinates.js">    </script>
+<script src="javascripts/initMap.js">    </script>
+<script src="javascripts/getCoordinates.js">    </script>
   <body>
     <div id="map"></div>
     <script async defer
