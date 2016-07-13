@@ -1,0 +1,88 @@
+AT+CGPSPWR=1 Not Necessary
+.OK
+
+.AT+CGPSRST=1 Not Necessary
+.OK
+
+.AT+CFUN=1 GSM Functionality
+.OK
+
+.AT+CIPSHUT Close Initial IP connection
+.SHUT OK
+
+AT+CIPMUX?
++CIPMUX: 0
+
+
+if not set
+.AT+CIPMUX=0 Single IP Mode
+.OK
+
+.AT+CIPSTATUS
+.OK
+.STATE: IP INITIAL
+
+AT+CGDCONT?
+.OK
+.required setting
+.+CGDCONT: 1,"IP","www","0.0.0.0",0,0
+ +CGDCONT: 3,"IP","","0.0.0.0",0,0
+
+if not
+.AT+CGDCONT=1,"IP", "www"
+.OK
+
+AT+CGACT?
+.+CGACT: 1,1
+.+CGACT: 3,0
+
+if not activate
+.AT+CGACT=1,1
+.OK
+
+AT+CGATT?
++CGATT: 1
+
+if not set 1
+.AT+CGATT=1 not necessary
+.OK
+
+.AT+CIPSTATUS
+.OK
+.STATE: IP INITIAL
+
+.AT+CSTT     Explore
+.OK
+
+.AT+CIPSTATUS
+.OK
+.STATE: IP START
+
+.AT+CIICR       Explore(Required the GPRS activation necessary)
+.OK
+
+AT+CIPSTATUS
+.OK
+
+.AT+CGPSINF=32
+.32,144114.000,A,1527.220080,N,7500.613057,E,0.00,0.00,141014,,E,A
+.OK
+getGPSCoordinates
+.AT+GSN
+.77100550392530
+.OK
+
+AT+CIPSTART="TCP","173.255.197.142","11831"
+.OK
+.CONNECT OK
+
+.AT+CIPSEND=109
+.> *77100550392530,1,0000,0,0,144101.000,A,1527.222891,N,7500.613869,E,0.00,0.00,141014,,E,A000000000000000000!
+
+.SEND OK
+
+.AT+CIPCLOSE
+.CLOSE OK
+
+AT+CIPSHUT
+.SHUT OK

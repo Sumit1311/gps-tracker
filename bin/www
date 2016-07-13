@@ -8,6 +8,7 @@ var app = require('../app');
 var debug = require('debug')('gps-tracker:server');
 var http = require('http');
 var db = require(process.cwd() + "/db/api");
+var fileLogger = require(process.cwd() + "/logger/api");
 /**
  * Get port from environment and store in Express.
  */
@@ -21,6 +22,7 @@ app.set('port', port);
 
 var server = http.createServer(app);
 
+fileLogger.setupLogger();
 /**
  * Listen on provided port, on all network interfaces.
  */
@@ -31,6 +33,8 @@ db.dbSetup.setupDatabase()
     .catch(function (err) {
         console.log(err);
     })
+
+
 server.on('error', onError);
 server.on('listening', onListening);
 

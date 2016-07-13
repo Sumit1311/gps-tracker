@@ -1,0 +1,15 @@
+Wed Jul 13 2016 20:09:02 GMT+0530 (IST){"lattitude":"1826.679613","longitude":"7347.937711"}
+Wed Jul 13 2016 20:09:35 GMT+0530 (IST){"lattitude":"1826.659870","longitude":"7347.897869"}
+Wed Jul 13 2016 20:10:07 GMT+0530 (IST){"lattitude":"1826.666489","longitude":"7347.925344"}
+Wed Jul 13 2016 20:10:42 GMT+0530 (IST){"lattitude":"1826.675127","longitude":"7347.920265"}
+Wed Jul 13 2016 20:16:48 GMT+0530 (IST){"lattitude":"0.000000","longitude":"0.000000"}
+Wed Jul 13 2016 20:17:21 GMT+0530 (IST){"lattitude":"1826.655457","longitude":"7347.918224"}
+Wed Jul 13 2016 20:19:35 GMT+0530 (IST){"lattitude":"0.000000","longitude":"0.000000"}
+Wed Jul 13 2016 20:20:12 GMT+0530 (IST){"lattitude":"1826.662998","longitude":"7347.916300"}
+Wed Jul 13 2016 20:20:44 GMT+0530 (IST){"lattitude":"1826.664837","longitude":"7347.928390"}
+Wed Jul 13 2016 20:21:16 GMT+0530 (IST){"lattitude":"1826.653490","longitude":"7347.913758"}
+Wed Jul 13 2016 20:21:48 GMT+0530 (IST){"lattitude":"1826.689604","longitude":"7347.957069"}
+Wed Jul 13 2016 20:22:21 GMT+0530 (IST){"lattitude":"1826.665418","longitude":"7347.923818"}
+Wed Jul 13 2016 20:22:55 GMT+0530 (IST){"lattitude":"1826.662665","longitude":"7347.922190"}
+Wed Jul 13 2016 20:23:31 GMT+0530 (IST){"lattitude":"1826.666804","longitude":"7347.923046"}
+Wed Jul 13 2016 20:24:06 GMT+0530 (IST){"lattitude":"1826.664422","longitude":"7347.921034"}
