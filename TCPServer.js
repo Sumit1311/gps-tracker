@@ -3,7 +3,7 @@ var db = require(process.cwd() + "/db/api");
 var fileLogger = require(process.cwd() + "/logger/api.js");
 var server;
 exports.setupTCPServer = setupTCPServer;
-function setupTCPServer() {
+function setupTCPServer(port) {
     server = net.createServer(function (socket) {
         socket.on('data', function (data) {
             console.log("Message from client : ", data.toString());
@@ -25,5 +25,5 @@ function setupTCPServer() {
     server.on("listening", function () {
         console.log("listening now....");
     })
-    server.listen(1337);
+    server.listen(port);
 };

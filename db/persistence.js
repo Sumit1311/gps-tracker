@@ -8,8 +8,9 @@ exports.persistence = function (persistenceDB) {
     if (persistence)
         return persistence;
     else {
+        //"pg://postgres:postgres@localhost:5432/gpstracker"
         persistence = new postgresPersistence({
-            "databaseUrl": "pg://postgres:postgres@localhost:5432/gpstracker"
+            "databaseUrl": process.env.DATABASE_URL || "pg://postgres:postgres@localhost:5432/gpstracker"
         });
         return persistence;
     }

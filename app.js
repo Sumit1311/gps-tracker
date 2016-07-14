@@ -7,7 +7,6 @@ var bodyParser = require('body-parser');
 
 var routes = require('./routes/index');
 var users = require('./routes/users');
-var tcp = require(process.cwd() + "/TCPServer.js");
 var db = require(process.cwd() + "/db/api");
 var app = express();
 
@@ -30,7 +29,7 @@ var dummyCoordinates = {
     "lattitude": 23.0934,
     "longitude": 30.6460
 };
-tcp.setupTCPServer();
+
 app.use("/getCoordinates", function (req, res) {
     db.coordinates.getCoordinates("1")
         .then(function (result) {
