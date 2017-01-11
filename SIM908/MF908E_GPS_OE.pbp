@@ -1,0 +1,4331 @@
+
+'******************************************************************************
+'* MF908
+'* Sistema di invio dati gps connessione dati
+'* Il sistema è basato su un PIC18F6722
+'* Questa sezione rappresenta l'unità da installare in auto 
+'*  14/09/11 corretto baco per estero. ora gestisce anche numeri negativi
+
+'* AIzaSyBgiaAH1mRFPG-7iedQo-_AZCGGnQiLjUw
+'******************************************************************************
+
+
+
+DEFINE OSC 20
+
+define HSER_RCSTA 90h   
+
+define HSER_TXSTA 24h
+
+define HSER_BAUD 115200
+
+define HSER_CLROERR 1
+
+SYMBOL	POWERGSM =PORTC.2		'Alimentazione cellulare ON/OFF
+SYMBOL  STATO    =PORTC.3       'RESET GSM
+SYMBOL  LD1      =PORTE.2           ' LED1 ROSSO
+SYMBOL  LD2      =PORTE.3           ' LED3 VERDE
+SYMBOL  P1       =PORTB.1
+SYMBOL  TXPC     =PORTG.0
+SYMBOL  RING     =PORTF.1           ' RING GSM
+
+OUTPUT POWERGSM
+OUTPUT LD1
+OUTPUT LD2
+INPUT  STATO
+
+INPUT P1
+
+
+TMP         VAR BYTE
+TMP1        VAR word
+TMP2        VAR BYTE
+TMP3        VAR BYTE
+TMP4        VAR BYTE
+TMPL        VAR LONG
+TMPL1       VAR LONG
+TMPW		VAR WORD
+TMPW1   	VAR WORD
+LEGGINUM	VAR WORD
+LEGGINUM2  	VAR WORD
+ADDR        VAR LONG
+ADDRL       VAR LONG
+ADDRL2      VAR LONG
+BUFF        VAR BYTE[160]
+EMAIL       VAR BYTE[55]
+ORA		    VAR BYTE[25]		
+LAT		    VAR BYTE[15]	
+NS	        VAR BYTE[10]	
+LON		    VAR BYTE[15]	 
+EW		    VAR BYTE[10]	
+PWD 	    VAR BYTE[6]
+NUMERO      VAR BYTE[25]
+MITTENTE    VAR BYTE[25]
+POSIZIONE   VAR BYTE
+LUNGNUM	    VAR BYTE
+LUNGMESS    VAR BYTE
+LUNGMITT    var byte
+LUNGEMAIL   var byte
+CONT	    VAR BYTE
+CONT1	    VAR BYTE
+CONT2	    VAR BYTE
+CONT3	    VAR BYTE
+CONTP	    VAR BYTE
+TROVATO     VAR BIT
+PWDOK       VAR BIT
+DATO        VAR BYTE
+MESS        VAR BYTE
+FRASE       VAR BYTE
+RITENTA     VAR BYTE
+DATI        VAR BYTE
+ERR1        VAR BYTE
+ERR2        VAR BYTE
+POS         VAR BYTE
+INDEX      VAR BYTE
+TENTATIVI   VAR BYTE
+RISPOSTA    VAR BYTE
+CERCAMITTENTE   VAR BYTE
+MULTIMESS   VAR BYTE
+POSMULTIMESS    var byte
+POSPUNTI    VAR BYTE
+PASSO       VAR BYTE
+PULSANTE    VAR BYTE
+NONREGISTRATO VAR BYTE
+MAILSOSPESO VAR BYTE
+
+MINUTIGSM       VAR BYTE
+SECONDIGSM      VAR BYTE
+ORAGSM          VAR BYTE
+POLLTIMEC       VAR LONG
+POLLTIMEM       VAR LONG
+POLLTIMETR      VAR LONG
+
+POLLTIMEML      VAR POLLTIMEM.BYTE0
+POLLTIMEMH      VAR POLLTIMEM.BYTE1
+
+POLLTIMECL      VAR POLLTIMEC.BYTE0
+POLLTIMECH      VAR POLLTIMEC.BYTE1
+
+GSMSECTOT       VAR LONG
+SECIMP          VAR BYTE
+MINUTIIMP       VAR BYTE
+ORAIMP          VAR BYTE
+ATTESAAZZERA    VAR BYTE
+NUMERISMS       VAR BYTE
+TEMPO           VAR BIT
+PCLATH_TEMP     var byte
+STATUS_TEMP     var byte
+W_TEMP          var byte
+
+DDLAT           VAR BYTE
+DDLON           VAR WORD
+MM              VAR BYTE
+SS              VAR BYTE
+ddd             VAR BYTE
+LATddddd        VAR LONG
+SIGNLAT         VAR BYTE
+LONddddd        VAR LONG
+SIGNLON         VAR BYTE
+
+TEMPOPOLCONT    VAR BIT
+TENTAEMAIL      VAR BYTE
+
+MOTIVOCOORD     VAR BYTE
+MOTIVOCOORDMOV  VAR BYTE
+NOTIFICAMOV     VAR BIT
+NOTIFICAAUTOC   VAR BIT
+NOTIFICASQUILLO VAR BIT
+NOTIFICACOO     VAR BIT
+NOTIFICASOS     VAR BIT
+
+POSTROVATO      VAR BYTE
+
+RISVEGLIOCICLICO    VAR BYTE
+ERROREGPRS          VAR BIT
+TIPOINVIO       VAR BYTE
+LAT1            VAR LONG
+LAT2            VAR LONG
+LATM            VAR LONG
+LON1            VAR LONG
+LON2            VAR LONG
+LONM            VAR LONG
+SIGNLAT1        VAR BYTE
+'SIGNLAT2        VAR BYTE
+SIGNLON1        VAR BYTE
+'SIGNLON2        VAR BYTE
+
+SQUILLO         VAR BIT
+REVERSEOK       VAR BIT
+TEMPORITENTA    VAR BYTE
+URL             VAR BIT
+DATIMODIFICATI  VAR BIT
+OVERDAYC        VAR BIT
+CELLTOCOOOK     VAR BIT
+MCCS            VAR BYTE[5]
+MNCS            VAR BYTE[5]
+MCC             VAR LONG
+MNC             VAR LONG
+LAC             VAR LONG
+CID             VAR LONG
+CIDOLD1         VAR LONG
+CIDOLD2         VAR LONG
+CIDOLD1MEMO     VAR BIT
+
+OVERDAYM        VAR BIT
+
+CID0            VAR CID.BYTE0
+CID1            VAR CID.BYTE1
+CID2            VAR CID.BYTE2
+CID3            VAR CID.BYTE3
+
+LAC0            VAR LAC.BYTE0
+LAC1            VAR LAC.BYTE1
+LAC2            VAR LAC.BYTE2
+LAC3            VAR LAC.BYTE3
+
+MCC0            VAR MCC.BYTE0
+MCC1            VAR MCC.BYTE1
+MCC2            VAR MCC.BYTE2
+MCC3            VAR MCC.BYTE3
+
+MNC0            VAR MNC.BYTE0
+MNC1            VAR MNC.BYTE1
+MNC2            VAR MNC.BYTE2
+MNC3            VAR MNC.BYTE3
+RAGGIO          VAR  LONG
+
+STRING          VAR BYTE[100]
+TEMPOMOVIMENTO  VAR BYTE
+MOVIMENTO       VAR BIT
+
+LUNGSMS         VAR BYTE
+LUNGBUFF        VAR BYTE
+
+	
+SAT		    VAR BYTE[3]		
+SPEED	    VAR BYTE[10]
+ALTIX	    VAR BYTE[10]	
+ALTI 	    VAR BYTE[10]	
+DIR		    VAR BYTE[10]	
+DAY		    VAR BYTE[10]	
+EWM		    VAR BYTE[3]	
+HDOP        VAR BYTE[10]
+NSATGA 	    VAR BYTE[10]
+NSAT  	    VAR BYTE 
+ALTITUDINE  VAR LONG
+VEL         VAR WORD
+VELNODI     VAR WORD
+DAT	        VAR BYTE[75]
+LUNGDATO        VAR BYTE
+GPSONINVIO      VAR BIT
+GPSACCESO       VAR BIT
+RICHIESTOGPS    VAR BIT
+DATIGPSOK       VAR BIT
+LATDEGMIN       VAR LONG
+LONDEGMIN       VAR LONG
+LATMINDEC       VAR LONG
+LONMINDEC       VAR LONG
+TROVATOPUNTO    VAR BIT
+NOGPSINVIOCELLE VAR BIT
+RSTCOLD         VAR BIT
+
+VER CON 20       'MODIFICARE LA VERSIONE SE SI CAMBIA ORA è LA 2 e funziona anche all'estero
+
+
+
+ADCON0=0
+ADCON1=%00001111
+CCP2CON=0
+
+CMCON=7
+CVRCON=0
+HLVDCON.4=0
+SSPCON1.5=0
+
+
+
+
+
+ON INTERRUPT GOTO PULSANTI
+
+'parametri ok
+MEMORIA1:
+
+
+EEPROM 401,["www.gpstracer.net/FT710/codifica.asp>80"]'/coordinate.asp?v1=Ciao&v2=Stefano&v3=Murru&v4=pippo>80"]               'URL 401÷499
+EEPROM 500,["WEB.OMNITEL.IT"]               'APN 500÷520  
+EEPROM 590,["www.gpstracer.net/FT710/email.asp>80"]         'SMTP 590÷680
+EEPROM 370,[1]    'FORMATO MESS LINK
+EEPROM 700,[0]   ' INVIO L'ALLARME SE C'è MOVIMENTO (CAMBIO CELLA)
+EEPROM 709,["S"]      ' INVIO I MESSAGGI TRAMITE SMS E EMAIL QUANDO C'è L'AUTOREPORT
+EEPROM 710,["M"]      ' INVIO I MESSAGGI A CHI LO HA RICHIESTO
+EEPROM 711,[0]      'INVIA DATI SULLE CELLE
+EEPROM 703,[0]    'INVIO IN POLLING CONTINUO DISATTIVATO
+EEPROM 704,[14]    'ORE TEMPO POLLING CONTINUO
+EEPROM 705,[16]    'MINUTI TEMPO POLLING CONTINUO
+EEPROM 768,[60]      'SLEEP PER 240 SECCNDI.. OGNI 240 SEOCNDI VIENE LETTO SE C'è UN SMS..
+EEPROM 769,[30]      'SLEEP PER 30 SECCNDI.. OGNI 30 SECONDI VIENE LETTO SE SI è MOSSO
+EEPROM 751,["F","T","9","0","8"," ","G","P","S"]
+'GPS
+EEPROM 800,[1]      'COORDINATE DA GPS
+EEPROM 811,[1]      'GPS NORMALMENTE ACCESO
+EEPROM 835,[3]      'num min di satelliti per l'invio
+'FINE GPS
+
+EEPROM 1001,["1","2","3","4","5"]    'PASSWORD DI DEFAULT
+EEPROM 1006,[0]                      'SE 0 PRIMA ACCENSIONE
+EEPROM 1007,[0]                      'SE 0 NON FACCIO IL REVERSEGEOCODING ALTRIMENTI LO FACCIO
+EEPROM 1021,[255]                    'SMS ABILITATO SU TUTTI I NUMERI
+EEPROM 1023,[0]                      'QUI SALVO I NUMERI CHE HANNO CHIESTO LE COORDINATE CON SQUILLO
+
+'ADDBASE	CON	60160   'memorizzo gli 8 indirizzi email  ATTENZIONE: SCRIVE NELLA PARTE ALTA $10000 + 60160
+'ADDFIN	CON 61000
+
+ADDBASE	CON $1EB00
+ADDFIN	CON $1FB00
+
+LOW LD1
+LOW LD2
+FOR TMP=0 TO 3    
+    TOGGLE LD1
+    TOGGLE LD2
+    PAUSE 100
+NEXT TMP
+
+
+ CLEAR
+
+
+'DEBUG  "SYS UP DATI 1.0",13,10
+'LOW RTS
+HIGH POWERGSM       'SUL PIN HO UN LIVELLO LOGICO BASSO
+
+START:
+    SEROUT2 TXPC,6,["-SYS UP V. ",#ver,13,10 ] 
+
+
+FOR ADDRL2=200 TO 300
+    WRITE ADDRL2,0        'SEGNO CHE HO INVIATO TUTTI I MESS
+NEXT ADDRL2
+
+GOSUB ON_OFF
+
+
+RITENTA=0
+
+GOSUB SETUP
+
+READ 811,TMP
+IF TMP=0 THEN                    
+    GOSUB GPSOFF         'SPENGO GPS 
+ELSE 
+    GOSUB GPSON          'ACCENDO GPS 
+ENDIF 
+
+
+   
+
+READ 1006,TMP    
+IF TMP=0 THEN   'SE PRIMA ACCENSIONE CANCELLO TUTTO
+    SEROUT2 TXPC,6,["CANC",13,10 ]
+    WRITE 1006,1
+    FOR TMP=0 TO 200
+        WRITE TMP,255
+    NEXT TMP
+    for POSIZIONE=1 to 8
+        gosub CANCELLAEMAIL
+    next POSIZIONE
+
+'    INTCON3.5=1
+ENDIF 
+
+CLEAR
+
+RCON        = %00000000
+INTCON      = %11000000     'Abilita interrupt on GPIO change
+INTCON2     = %00000010	    'Abilita resistenze di pull-up E INTERRUPT SU RB
+'INTCON3     = %11011000
+INTCON3     = %11111000   
+'IOC         = %00000011     ' Abilita interrupt on GP4 change
+'PIE1        = %00000000     ' Disabilita altri interrupt
+
+
+
+gosub leggisms
+
+
+
+GOSUB STARTTIME 'COSì VARSECTOT=0
+MEMOMASTER:
+    READ 0,TMP
+    IF TMP=255 THEN   'SE NON è PRESENTE IL MASTER VADO CICLICAMENTE IN CHIAMA PER UN TOTALE DI 3 MINUTI E FACCIO LAMPEGGIARE IL LED ROSSO
+
+       high ld1 
+       SEROUT2 TXPC,6,["ASPETTO MASTER",13,10] 
+        FOR TMPW=0 TO 720         '60 * 3 SECONDI = 180 SECONDI = 3MINUTI
+                IF RING=0 THEN
+                    SEROUT2 TXPC,6,[ "CHIAMATA",13,10 ]
+                    FOR TMP=0 TO 10 
+                        PAUSE 100
+                        TOGGLE LD1
+                    NEXT TMP
+                    GOSUB CHIAMATA
+                    POSIZIONE=1
+                    FOR TMP=0 TO LUNGMITT
+                        numero[tmp]=MITTENTE[TMP]
+                    NEXT TMP
+                    LUNGNUM=LUNGMITT                  
+                    GOSUB MEMONUMERO    
+                    FOR TMP=0 TO 20
+                        TOGGLE LD1
+                        PAUSE 100
+                    NEXT TMP
+                    CLEAR
+    '                GOSUB DORMI
+                    low ld1
+                    
+                    GOTO MAIN
+                ENDIF
+                PAUSE 250            
+                HIGH LD1           'DURANTE L'ATTESA DELLA CHIAMATA IL LD1 LAMPEGGIA OGNI 3 SECONDI            
+        NEXT TMPW
+    ENDIF
+    low LD1 
+
+CLEAR
+
+
+'IF USB=1 THEN
+'    REALT=1
+'ENDIF
+
+MAIN:
+
+
+    READ 1006,TMP   'DOPO UN RESET NELLA POSIZIONE 1006 TROVO 0 E RIAVVIO TUTTO.
+    IF TMP=0 THEN
+        GOTO START
+    ENDIF
+    
+
+            HSEROUT ["AT+CSQ",13] 
+            HSERIN 2000,CHIAMANO,[wait ("+CSQ: "),STR BUFF\5\13]
+            PAUSE 100
+            HSEROUT ["AT+CGREG?",13]  '+CREG: 2,1,271C,998D
+            PAUSE 100
+            
+                HSEROUT ["AT+COPS?",13]                 
+                '+COPS: 0,2,"22210"
+                FOR TMP=0 TO 5
+                    MNCS[TMP]=0
+                NEXT TMP
+                HSERIN 2000,CHIAMANO,[WAIT ("+COPS: "),TMP,TMP,TMP,TMP,TMP,MCCS[0],MCCS[1],MCCS[2],STR MNCS\5\34]
+                PAUSE 50     
+                MCC=0
+                FOR TMP=0 TO 2                                                                          
+                    MCC=(MCC*10)+(MCCS[TMP]-48)
+                NEXT TMP
+                
+                MNC=0
+                FOR TMP=0 TO 6
+                    IF MNCS[TMP]<>0 THEN                                                                            
+                        MNC=(MNC*10)+(MNCS[TMP]-48)
+                    ELSE
+                        TMP=7
+                    ENDIF                    
+                NEXT TMP
+                
+                HSEROUT ["AT+CREG?",13]                
+                HSERIN 2000,CHIAMANO,[WAIT ("+CREG: "),TMP1,TMP,TMP2,TMP,HEX4 LAC,TMP,HEX4 CID]
+                PAUSE 100
+                '+CREG: 2,1,271C,998D
+                IF TMP1<>"2" OR (TMP2<>"1" AND TMP2<>"5") THEN  '5 SE è IN ROAMING   'attenzione al 2= richiedo anche le celle
+        '            HSEROUT ["AT+CREG=1",13]
+        '            PAUSE 1000
+                    SEROUT2 TXPC,6,["NO ",#NONREGISTRATO,32,STR BUFF\5,13,10]
+                    NONREGISTRATO=NONREGISTRATO+1
+                    IF NONREGISTRATO=5 THEN
+                        NONREGISTRATO=0
+                        GOTO START
+                    ENDIF                              
+                    HIGH LD2
+                    'PAUSE 50
+                    'LOW LD2
+                else
+                    NONREGISTRATO=0 
+                    
+
+                    
+                    SEROUT2 TXPC,6,["REG ",STR BUFF\5,13,10]
+                    SEROUT2 TXPC,6,["MCC ",DEC MCC,13,10]       'NUMERO
+                    SEROUT2 TXPC,6,["MNC ",DEC MNC,13,10]       'NUMERO
+                    SEROUT2 TXPC,6,["LAC ",DEC LAC,13,10]       'NUMERO
+                    SEROUT2 TXPC,6,["CID ",DEC CID,13,10]       'NUMERO
+
+                    'CIDOLD1=41117
+                    'CIDOLD2=14815
+                    SEROUT2 TXPC,6,["CID ",DEC CID," - CIDOLD1 ",DEC CIDOLD1," - CIDOLD2 ",DEC CIDOLD2,13,10]       'NUMERO
+                    READ 700,TMP 'SE è ABILITATO IL MOVIMENTO
+                    IF TMP=1 AND CID<>CIDOLD1 and CID<>CIDOLD2 AND CIDOLD1<>0 AND CIDOLD2<>0 THEN   'CIDOLD<>0 SERVE PER EVITARE CHE ALL'INIZIO INVII LE COORDINATE
+                        SEROUT2 TXPC,6,["INVIO ALLARME MOVIMENTO CID ",DEC CID," - CIDOLD1 ",DEC CIDOLD1," - CIDOLD2 ",DEC CIDOLD2,13,10]       'NUMERO
+                        IF CIDOLD1MEMO=0 THEN   'LA CELLA è UNA TERZA CELLA
+                            CIDOLD1=CID         'LA MEMO NELL CELLOLD1
+                            CIDOLD1MEMO=1       ' E SEGNO CHE ALLA PROSSIMA VARIAZIONE DEVO SALVARLA NEL CELLOLD2
+                        ELSE
+                            CIDOLD2=CID
+                            CIDOLD1MEMO=0                            
+                        ENDIF
+                        MOTIVOCOORDMOV=3
+                        NOTIFICAMOV=1
+                        GOSUB INVIOCOORDINATE
+                        MOVIMENTO=1      'HO RILEVATO IL MOVIMENTO
+                    ELSE
+                        IF MOVIMENTO=1 AND TEMPOMOVIMENTO=0 THEN     'SE HO RILEVATO IL MOVIMENTO PER 
+                            TEMPOMOVIMENTO=120  '120 VOLTE TOLGO LO SLEEP
+                        ENDIF
+                        
+                        IF CIDOLD1=0 THEN          'SE IL CIDOLD1 è VUOTO 
+                            CIDOLD1=CID             'LO RIEMPO
+                        ELSE                       'ALTRIMENTI =CIDOLD1 GIà PIENO
+                            IF CIDOLD1<>CID AND CIDOLD2=0 THEN   'SE CIDOLD2 è VUOTO I QUESTO CID NON è GIà STATO CARICATO IN CIDOLD1 
+                                CIDOLD2=CID                     'LO CARICO IN CIDOLD2
+                            ENDIF
+                        ENDIF  
+                    ENDIF
+                        
+                    HIGH LD2
+                    PAUSE 50
+                    LOW LD2
+                ENDIF
+
+    READ 768,TMP
+    IF TEMPOMOVIMENTO>0 THEN
+        TEMPOMOVIMENTO=TEMPOMOVIMENTO-1
+        TMP=2   'COSI COMUNQUE ASPETTA UN SECONDO... CHE MOLTIPLICATO PER 120 VOLTE FA CIRCA 2 MINUTI
+    ENDIF
+    IF TEMPOMOVIMENTO=0 THEN
+        MOVIMENTO=0
+    ENDIF
+    FOR TMPW=0 TO (tmp/2)   'diviso due perchè in realtà lo sleep dura circa 2 sec
+        'SEROUT2 TXPC,6,[ "TMPW ",#TMPW,13,10]        
+        sleep 1
+        'PAUSE 100
+        IF PULSANTE<>0 THEN
+            TMPW=900    'COSì ESCO
+        ENDIF   
+        IF RING=0 THEN
+            SEROUT2 TXPC,6,[ "CHIAMATA",13,10]
+            HSEROUT ["AT",13]
+            pause 500
+            GOSUB CHIAMATA
+            TMPW=900    'COSì VADO A VEDERE SE ERA UN SMS
+        ENDIF
+    NEXT TMPW
+    FOR TMP=0 TO 3
+        HSEROUT ["AT",13]
+        pause 200
+    NEXT TMP
+    
+    HSEROUT ["AT+CIFSR",13]
+    HSERIN 3000,SCONNETTI,[wait ("ERROR")]
+    PAUSE 500 
+    HSEROUT ["AT+CGATT?",13] 
+    PAUSE 500
+    
+ 
+    
+    GOSUB LEGGISMS    
+
+
+    SELECT CASE PULSANTE
+        CASE 10 'PRESSIONE BREVE DI P1
+            SEROUT2 TXPC,6,["INVIO SOS",13,10] 
+
+            
+            NOTIFICASOS=1        
+            PULSANTE=0
+            gosub inviocoordinate
+            'gosub REVERSEGEO
+        CASE 11 'PRESSIONE LUNGA DI P1
+            'SEROUT2 TXPC,6,["BHO",13,10]     
+            PULSANTE=0 
+
+    END SELECT
+
+
+
+
+SEROUT2 TXPC,6,[ "TEMPO ",#TEMPO,32,#TEMPOPOLCONT,13,10]
+IF TEMPOPOLCONT=1 THEN        
+    TEMPO=1
+    GOSUB TIME  'VADO SEMPRE A LEGGERE IL TEMPO
+ELSE
+    TEMPO=0
+ENDIF
+
+    IF RING=0 THEN
+        SQUILLO=1
+        GOTO CHIAMANO
+    ENDIF 
+    SEROUT2 TXPC,6,[ "RITENTA ",#RITENTA,13,10]
+    IF RITENTA=1 THEN   'SE RITENTA =1 FINO A QUANDO NON RIESTO AD INVIARE LE COORDINATE CONTINUO A PROVARCI
+        
+        GOSUB INVIOCOORDINATE
+    ENDIF
+    
+    IF RING=0 THEN
+        SQUILLO=1
+        GOTO CHIAMANO
+    ENDIF   
+    
+    READ 811,TMP
+    IF TMP=1 THEN 
+        gosub LEGGIgps 'SE IL GPS è SEMPRE ACCESO VADO A LEGGERLO COSì FACCIO LAMPEGGIARE IL LED
+    
+    endif         
+
+    SEROUT2 TXPC,6,[ "-GPSONINVIO ",#GPSONINVIO, " -GPSACCESO ",#GPSACCESO, 13,10 ]
+    IF GPSONINVIO=0 THEN
+            READ 811,TMP
+            IF TMP=0 THEN 
+                IF  GPSACCESO=1 THEN               
+                    GOSUB GPSOFF         'SPENGO GPS 
+                    SEROUT2 TXPC,6,[ "-SPENGO GPS ",13,10 ]
+                ENDIF
+            ELSE
+                IF  GPSACCESO=0 THEN
+                    SEROUT2 TXPC,6,[ "-ACCENDO GPS",13,10 ] 
+                    GOSUB GPSON          'ACCENDO GPS 
+                ENDIF
+            ENDIF          
+    ELSE
+        IF  GPSACCESO=0 THEN
+            SEROUT2 TXPC,6,[ "ACCENDO GPS",13,10 ]        
+            GOSUB GPSON
+        ENDIF
+    ENDIF
+    
+ 
+    
+    GOSUB GESTPOLLING
+
+    
+CHIAMANO:                          
+    IF SQUILLO=1 or ring=0 THEN           
+'        SEROUT2 TXPC,6,[ "CHIAMATA",13,10 ]
+'        GOSUB SVEGLIA
+        GOSUB CHIAMATA
+        SQUILLO=0
+    ENDIF
+
+GOTO MAIN
+
+SCONNETTI:
+        HSEROUT ["AT",13]
+        PAUSE 1000
+        HSEROUT ["AT+CIPSHUT",13]
+        HSERIN 3000,START,[wait ("SHUT")]       'se non si sconnette riavvia
+GOTO MAIN
+
+
+INVIOCOORDINATE:        'INVIA LE COORDIANTE TRAMITE SMS SOLO PER POLLING O RICHIESTA TRAMITE SQUILLO O SMS
+
+
+    SEROUT2 txpc,6,[ "INVIOCOOR",13,10]
+    REVERSEOK=0
+    SEROUT2 TXPC,6,[ "NOTIFICAAUTOC ",#NOTIFICAAUTOC," - NOTIFICASQUILLO ",#NOTIFICASQUILLO," - NOTIFICACOO ",#NOTIFICACOO," - NOTIFICAMOV ",#NOTIFICAMOV,32,13,10 ]
+
+    READ 800,RICHIESTOGPS 'VERIFICO SE HO RICHISTO LE COORDINATE DA GPS (1)
+    
+    CELLTOCOOOK=0  'DICO CHE I DATI DELLE CELLE NON SONO OK
+    IF RICHIESTOGPS=1 AND NOGPSINVIOCELLE=0 THEN
+        SEROUT2 txpc,6,[ "INVIOCOOR GPS",13,10]
+        GPSONINVIO=1    'SALVO CHE IL GPS L'HO ACCESO PER L'INVIO
+        DATIGPSOK=0 ' DICO CHE I DATI GPS NON SONO OK
+        
+        GOSUB LEGGIGPS            
+            READ 835,TMP    'LEGGO IL NUMERO MIN DI SATELLITI
+                        
+            SEROUT2 txpc,6,["FIX ",SAT[0]," - SAT ",#NSAT," - MINSAT ",#TMP,13,10]
+            IF SAT[0]="A" AND NSAT>=TMP THEN
+                SEROUT2 txpc,6,[ "OK FIX E NUMERO MIN SATELLITI",13,10]
+                HIGH LD1  
+                RITENTA=0
+                DATIGPSOK=1     ' SE HO IL NUMERO DI SATELLITI E IL FIX I DATI SONO OK
+                TEMPORITENTA=0
+                GPSONINVIO=0
+             ELSE
+                SEROUT2 txpc,6,[ "RITENTA",13,10]
+                RITENTA=1   
+             ENDIF  
+    ELSE
+        SEROUT2 txpc,6,[ "INVIOCOOR CELLE",13,10]        
+        GOSUB CELLTOCOO     'VADO A INTERROGARE GOOGLE
+        'SEROUT2 txpc,6,[ "CELLTOCOOOK  ",#CELLTOCOOOK,13,10]
+    ENDIF
+    
+            SEROUT2 txpc,6,[ "CELLTOCOOOK: ",#CELLTOCOOOK," - DATIGPSOK: ",#DATIGPSOK,13,10]
+            IF CELLTOCOOOK=1 OR DATIGPSOK=1 THEN   'SE IL SERVER HA RISPOSTO O DEVO INVIARE UN SOS
+                tmp="S"    
+                IF NOTIFICAAUTOC=1 THEN                    
+                    SEROUT2 txpc,6,[ "NOTIFICAAUTOC",13,10]
+                    'read 1021,NUMERISMS
+                    MOTIVOCOORD=21  
+                    GOSUB SCELTASMS
+                    NOTIFICAAUTOC=0
+                ENDIF  
+                
+                
+                IF NOTIFICASQUILLO=1 THEN                    
+                    SEROUT2 txpc,6,[ "NOTIFICASQUILLO",13,10]
+'                        READ 710,TMP
+'                        IF TMP="M" OR TMP="m" THEN    'SOLO SE MI HANNO CHIESTO IL POLLING ALLORA LEGGO CHI HA CHIAMATO
+'                            read 1023,NUMERISMS             'LEGGO CHI HA CHIAMATO
+'                        ELSE
+'                            read 1021,NUMERISMS             'LEGGO I NUMERI DALLA MEMORIA
+'                        ENDIF 
+                    GOSUB SCELTASMS                           
+                    NOTIFICASQUILLO=0
+                ENDIF
+                    
+                IF NOTIFICAMOV=1 THEN   'LO METTO PRE PRIMO PERCHè ALMENTO VIENE MANTENUTO IL MOTIVO DELL'INVIO                     
+                    SEROUT2 txpc,6,[ "NOTIFICAMOV",13,10] 
+                    'read 1021,NUMERISMS                   
+                    MOTIVOCOORD=MOTIVOCOORDMOV
+                    GOSUB SCELTASMS
+                    NOTIFICAMOV=0                    
+                ENDIF   
+                
+                IF NOTIFICASOS=1 THEN                      
+                    SEROUT2 txpc,6,[ "NOTIFICASOS",13,10] 
+                    TEMPORITENTA=5  'LO METTO SUBITO ALTO COSì LO INVIA IMMEDIATAMENTE VISTO CHE è UN SOS
+                    'read 1021,NUMERISMS                   
+                    MOTIVOCOORD=5
+                    'è DISPONIBILE SOLAMENTE L'SMS
+                    GOSUB SCELTASMS   
+                    NOTIFICASOS=0                  
+                ENDIF          
+  
+                
+                IF NOTIFICACOO=1 THEN  
+                    SEROUT2 txpc,6,[ "NOTIFICACOO",13,10]  
+                    GOSUB SCELTASMS  
+                    NOTIFICACOO=0                 
+                ENDIF 
+                
+               
+                GPSONINVIO=0
+                NOGPSINVIOCELLE=0
+                LOW LD1    
+            ELSE
+                SEROUT2 txpc,6,["RIT ",#RITENTA,13,10]
+                'NOTIFICAAUTOC=0         'SE NON C'è IL FIX TOLGO IL MOTIVO DELL'INVIO
+                IF RITENTA=0  THEN 'SE ANCHE STO RITENTANDO PER QUALCOS'ALTRO MA MESSNOFIX è 1 ALLORA INVIO IL MESS NO FIX
+                    RITENTA=1
+                    TEMPORITENTA=0
+                    
+                ELSE    'SE STO ATTENDENDO IL FIX INCREMENTO IL TEMPORITENTA, DOPO UN PO' NON CI PROVO PIù
+                    TEMPORITENTA=TEMPORITENTA+1
+                    SEROUT2 txpc,6,["TEMPORITENTA ",#TEMPORITENTA,13,10]
+                    IF TEMPORITENTA>5 THEN    'MAX 255 
+                        IF  NOGPSINVIOCELLE=0 AND RICHIESTOGPS=1 THEN   
+                            NOGPSINVIOCELLE=1  
+                            TEMPORITENTA=0   
+                            SEROUT2 txpc,6,["NON C'E' GPS INVIO LE CELLE ",13,10]
+                        ELSE
+                            NOGPSINVIOCELLE=0
+                            TEMPORITENTA=0
+                            RITENTA=0               
+                            NOTIFICAAUTOC=0    
+                            NOTIFICASQUILLO=0 
+                            NOTIFICACOO=0 
+                            NOTIFICAMOV=0
+                            NOTIFICASOS=0
+                            GPSONINVIO=0
+                            READ 710,TMP
+                            IF TMP="M" OR TMP="m" THEN    'SOLO SE MI HANNO CHIESTO IL POLLING ALLORA LEGGO CHI HA CHIAMATO
+                                read 1023,NUMERISMS             'LEGGO CHI HA CHIAMATO
+                                SEROUT2 txpc,6,["INVIO A CHI HA CHIAMATO",13,10]
+                            ELSE
+                                read 1021,NUMERISMS             'LEGGO I NUMERI DALLA MEMORIA
+                                SEROUT2 txpc,6,["INVIO AI NUMERI IN MEMORIA",13,10]
+                            ENDIF
+                            FRASE=11  
+                            GOSUB INVIOSMSALLARME
+                        ENDIF
+                    ENDIF        
+                ENDIF
+            ENDIF          
+'    INTCON3.5=1 'enable interrupt
+RETURN
+
+SCELTASMS:
+    IF TMP="S" OR TMP="s" OR TMP="3" OR TMP="4" OR TMP="9" OR TMP="M" OR TMP="m" THEN   'HO SCELTO SMS
+
+        read 370,tmp1   'leggo se ho richiesto l'invio nella modalità 7 (solo via)
+        READ 1007,TMP   'se ho chiesto il reverse invio la via        
+           
+        
+            IF CELLTOCOOOK=1 OR DATIGPSOK=1 THEN  'SE NON è GIà STATO FATTO IL REVERSE DI QUESTE COORDINATE e LE COORDINATE SONO BUONE FALLO
+                IF (TMP=1 OR TMP1=7) AND REVERSEOK=0 THEN
+                    FOR TMP=0 TO 100
+                        BUFF[TMP]=0
+                    NEXT TMP
+                    GOSUB REVERSEGEO
+                ELSE
+                    BUFF[3]=0  'COSì IL PASSAGGIO DOPO VIENE SALTATO
+                ENDIF
+                FRASE=10  
+            ELSE
+                
+                FRASE=11  
+            ENDIF
+        
+        IF NOTIFICACOO=1 OR NOTIFICASQUILLO=1 THEN
+            READ 710,TMP
+            IF (TMP="M" OR TMP="m") THEN    'SOLO SE MI HANNO CHIESTO IL POLLING ALLORA LEGGO CHI HA CHIAMATO
+                read 1023,NUMERISMS             'LEGGO CHI HA CHIAMATO
+                SEROUT2 txpc,6,["INVIO A CHI HA CHIAMATO",13,10]
+                IF NOTIFICACOO=1 THEN
+                    SEROUT2 TXPC,6,[ "NOTIFICACOO MITT: " ]                    
+                    read 400,LUNGMITT
+                    FOR TMP=0 TO LUNGMITT
+                        READ (380+tmp),MITTENTE[TMP]
+                        SEROUT2 TXPC,6,[ MITTENTE[TMP] ]                    
+                    NEXT TMP
+                    SEROUT2 TXPC,6,[ 13,10  ] 
+                    GOSUB INVIOSMS 
+                else
+                    SEROUT2 txpc,6,["INVIO AI NUMERI IN MEMORIA",13,10]
+                    GOSUB INVIOSMSALLARME     
+                ENDIF
+            ELSE
+                read 1021,NUMERISMS             'LEGGO I NUMERI DALLA MEMORIA
+                SEROUT2 txpc,6,["INVIO AI NUMERI IN MEMORIA",13,10]
+                GOSUB INVIOSMSALLARME
+            ENDIF
+        ELSE
+            read 1021,NUMERISMS             'LEGGO I NUMERI DALLA MEMORIA
+            SEROUT2 txpc,6,["INVIO AI NUMERI IN MEMORIA",13,10]
+            GOSUB INVIOSMSALLARME          
+        ENDIF
+
+
+        
+        REVERSEOK=0
+        RITENTA=0
+    ENDIF
+RETURN
+                    
+REVERSEOK=0 'SEGNO CHE LA PROSSIMA VOLTA DOVRò RIFARE IL REVERSE                    
+                    
+                    
+
+FORMATOCOORDINATE:
+        SEROUT2 txpc,6,["MOTIVOCOORD ",#MOTIVOCOORD,13,10]
+
+                SEROUT2 txpc,6, ["NOGPSINVIOCELLE: ",#NOGPSINVIOCELLE,13,10]                
+                SEROUT2 TXPC,6,[ "-$GPRMC",STR DAT\65,13,10]
+                'da togliere da qua.....
+'                hserout [ "-$GPRMC",STR DAT\65,13,10]
+                
+'                            HSEROUT ["...",26]
+'                            pause 3000
+'                            hserin 10000,EXITINVIOSMS,[WAIT("CMGS:"),TMP]
+'                            hserout ["AT+CMGS=",34,STR MITTENTE\(LUNGMITT+1),34,13]
+'                            PAUSE 2000
+'                            hserout ["...",13]
+'                            PAUSE 500
+                'a qua.....
+                            
+                            
+                LUNGSMS=0
+                select case tmp3
+                    
+                    case 1
+                        hserout ["Position:",13,10]                        
+                        SEROUT2 txpc,6, ["Position:",13,10]
+                        LUNGSMS=LUNGSMS+11
+                                FOR TMP=0 TO 18
+                                    READ 751+TMP,TMP1
+                                    IF TMP1<>"#" AND TMP1<>255 THEN
+                                        HSEROUT [TMP1]
+                                        SEROUT2 txpc,6,[TMP1]
+                                        LUNGSMS=LUNGSMS+1
+                                    ELSE
+                                        TMP=31
+                                    ENDIF
+                                NEXT TMP 
+                                hserout [13,10]       'NUMERO
+                                SEROUT2 txpc,6, [13,10]
+                                'hserout ["MNC ",DEC MNC,13]       'NUMERO
+                                READ 711,TMP
+                                IF TMP=1 THEN
+                                    hserout ["LAC ",hex LAC,13,10]       'NUMERO
+                                    hserout ["CID ",hex CID,13,10]       'NUMERO
+                                    'SEROUT2 txpc,6, ["LAC ",hex LAC,13,10]       'NUMERO
+                                    'SEROUT2 txpc,6, ["CID ",hex CID,13,10]       'NUMERO
+                                    LUNGSMS=LUNGSMS+21
+                                ENDIF
+                                READ 800,TMP 'SE HO RICHISTO LE COORDINATE DA GPS (1) 
+                                IF TMP=1 THEN
+                                    IF NOGPSINVIOCELLE=0 THEN
+                                        IF NSATGA[1]=0 THEN
+                                                nsat=NSATGA[0]-48
+                                        ELSE
+                                                nsat= ((NSATGA[0]-48)*10)+(NSATGA[1]-48)
+                                        ENDIF
+                    '                                         T  R  A  C   E R     
+                    '                                         84 82 65 67 69 82    "   !??#$%&''()*+,-./0
+                    '                                         54 52 41 43 45 52                                   
+                                                'SEROUT2 txpc,6,["-DAY: ",DAY[0],DAY[1],"/",DAY[2],DAY[3],13,10]
+                                            
+                                            hserout ["DAY: ",DAY[0],DAY[1],"/",DAY[2],DAY[3],13,10]
+                                            hserout ["TIME: ",ORA[0],ORA[1],":",ORA[2],ORA[3],":",ORA[4],ORA[5],13,10]
+                                            LUNGSMS=LUNGSMS+28
+                                            IF TMP2<20 OR TMP2>2 THEN   'se ho preso il punto in memoria non ho i satelliti e non li visualizzo  
+                                                hserout ["SAT: ",#NSAT,13,10]
+                                            endif
+                                            LUNGSMS=LUNGSMS+9
+                                        hserout ["SPEED: ", #VEL," Km/h",13,10]
+                                        hserout ["SPEED: ", #VELNODI," N",13,10] 'togliere
+                                        LUNGSMS=LUNGSMS+18                        'togliere
+                                        LUNGSMS=LUNGSMS+18
+                                        tmp2= ((DIR[0]-48)*100)+((DIR[1]-48)*10)+(DIR[2]-48)
+                                        'SEROUT2 txpc,6,[ "DIR  ",#TMP2," g",13,10]
+                                        hserout [ "DIR: ",#TMP2," g",13,10]
+                                        LUNGSMS=LUNGSMS+12
+                                        'SEROUT2 txpc,6,[ "ALTI ", #ALTITUDINE,13,10]
+                                        hserout [ "ALT: ", #ALTITUDINE,13,10]
+                                        LUNGSMS=LUNGSMS+11
+                                    ELSE
+                                       hserout [ "NO FIX",13,10]   
+                                       LUNGSMS=LUNGSMS+6
+                                    ENDIF     
+                            ENDIF
+                                
+                                
+                                hserout ["LAT: ",SIGNLAT,DEC DDLAT,"."]
+                                SEROUT2 txpc,6,      ["LAT: ",SIGNLAT,DEC DDLAT,"."]
+                                
+                                READ 800,TMP 'SE HO RICHISTO LE COORDINATE DA GPS (1) 
+                                IF TMP=1 and NOGPSINVIOCELLE=0 THEN 
+                                    IF LATddddd<100000 THEN
+                                        hserout ["00"]
+                                        SEROUT2 txpc,6,["00"]
+                                    ELSE
+                                        IF LATddddd<1000000 THEN
+                                            hserout ["0"]
+                                            SEROUT2 txpc,6,  ["0"]
+                                        ENDIF                                    
+                                    ENDIF  
+                                else
+                                    IF LATddddd<10000 THEN
+                                        hserout ["00"]
+                                        SEROUT2 txpc,6,["00"]
+                                    ELSE
+                                        IF LATddddd<100000 THEN
+                                            hserout ["0"]
+                                            SEROUT2 txpc,6,  ["0"]
+                                        ENDIF                                    
+                                    ENDIF 
+                                endif
+                                                                
+                                hserout [DEC LATddddd,32]
+                                SEROUT2 txpc,6,  [DEC LATddddd,32]
+                                
+                                pause 50
+                                hserout [13,10,"LON: ",SIGNLon,DEC DDLON,"."]
+                                SEROUT2 txpc,6, [13,10,"LON: ",SIGNLon,DEC DDLON,"."]
+                                
+                                                                READ 800,TMP 'SE HO RICHISTO LE COORDINATE DA GPS (1) 
+                                IF TMP=1 and NOGPSINVIOCELLE=0 THEN 
+                                    IF LONddddd<100000 THEN
+                                        hserout ["00"]
+                                        SEROUT2 txpc,6,["00"]
+                                    ELSE
+                                        IF LONddddd<1000000 THEN
+                                            hserout ["0"]
+                                            SEROUT2 txpc,6,["0"]
+                                        ENDIF                                    
+                                    ENDIF 
+                                else
+                                    IF LONddddd<10000 THEN
+                                        hserout ["00"]
+                                        SEROUT2 txpc,6,["00"]
+                                    ELSE
+                                        IF LONddddd<100000 THEN
+                                            hserout ["0"]
+                                            SEROUT2 txpc,6,["0"]
+                                        ENDIF                                    
+                                    ENDIF  
+                                endif
+                                
+                                
+                                                                  
+                                hserout [DEC LONddddd,13,10]
+                                SEROUT2 txpc,6, [DEC LONddddd,13,10]
+                                LUNGSMS=LUNGSMS+35
+                                
+                                READ 800,TMP 'SE HO RICHISTO LE COORDINATE DA GPS (1) NON INVIO IL RANGE
+                                IF TMP=0 THEN
+                                    hserout ["Range: ",DEC RAGGIO, " m ",13,10]
+                                    SEROUT2 txpc,6, ["Range: ",DEC RAGGIO, " m ",13,10]
+                                    pause 50
+                                ENDIF
+                                
+                                LUNGSMS=LUNGSMS+15
+                    
+                    case 2  'LINK
+                    
+                            '*****togliere
+                            hserout ["Position:",13,10]                        
+                            SEROUT2 txpc,6, ["Position:",13,10]
+                            LUNGSMS=LUNGSMS+11
+                                FOR TMP=0 TO 18
+                                    READ 751+TMP,TMP1
+                                    IF TMP1<>"#" AND TMP1<>255 THEN
+                                        HSEROUT [TMP1]
+                                        SEROUT2 txpc,6,[TMP1]
+                                        LUNGSMS=LUNGSMS+1
+                                    ELSE
+                                        TMP=31
+                                    ENDIF
+                                NEXT TMP 
+                                hserout [13,10]       'NUMERO
+                                SEROUT2 txpc,6, [13,10]
+                                
+                            READ 800,TMP 'SE HO RICHISTO LE COORDINATE DA GPS (1) 
+                                IF TMP=1 THEN
+                                    IF NOGPSINVIOCELLE=0 THEN
+                                        IF NSATGA[1]=0 THEN
+                                                nsat=NSATGA[0]-48
+                                        ELSE
+                                                nsat= ((NSATGA[0]-48)*10)+(NSATGA[1]-48)
+                                        ENDIF 
+                                            IF TMP2<20 OR TMP2>2 THEN   'se ho preso il punto in memoria non ho i satelliti e non li visualizzo  
+                                                hserout ["SAT: ",#NSAT,13,10]
+                                            endif
+                                            LUNGSMS=LUNGSMS+9
+                                        hserout ["SPEED: ", #VEL," Km/h",13,10]
+                                        LUNGSMS=LUNGSMS+18
+                                        hserout ["SPEED: ", #VELNODI," N",13,10] 'togliere
+                                        LUNGSMS=LUNGSMS+18                        'togliere
+                                        hserout ["SPEED: ", speed,13,10] 'togliere
+                                        LUNGSMS=LUNGSMS+18   
+                                    ELSE
+                                       hserout [ "NO FIX",13,10]   
+                                       LUNGSMS=LUNGSMS+6
+                                    ENDIF     
+                                ENDIF
+                                '*****togliere
+                            
+                            
+                                hserout ["http://maps.google.it/maps?f=q&hl=it&q=",SIGNLAT,DEC DDLAT,"."]
+                                'SEROUT2 txpc,6,["http://maps.google.it/maps?f=q&hl=it&q=",SIGNLAT,DEC DDLAT,"."]
+                                LUNGSMS=LUNGSMS+39
+                                
+                                IF LATddddd<100000 THEN
+                                    hserout ["00"]
+                                   ' SEROUT2 txpc,6, ["00"]
+                                ELSE
+                                    IF LATddddd<1000000 THEN
+                                        hserout ["0"]
+                                    '    SEROUT2 txpc,6, ["0"]
+                                    ENDIF                                    
+                                ENDIF                                  
+                                hserout [DEC LATddddd,",",SIGNLon,DEC DDLON,"."]
+                                'SEROUT2 txpc,6, [DEC LATddddd,",",SIGNLon,DEC DDLON,"."]
+                                
+                                IF LONddddd<100000 THEN
+                                    hserout ["00"]
+                                  '  SEROUT2 txpc,6, ["00"]
+                                ELSE
+                                    IF LONddddd<1000000 THEN
+                                        hserout ["0"]
+                                    '    SEROUT2 txpc,6,["0"]
+                                    ENDIF                                    
+                                ENDIF                                  
+                                hserout [DEC LONddddd,13,10]
+                               ' SEROUT2 txpc,6,  [DEC LONddddd,13,10]
+                               ' pause 50
+                                LUNGSMS=LUNGSMS+33              
+
+                end select
+                    HSEROUT [13,10]
+                    IF BUFF[3]<>0 THEN    'CONTROLLO ANCHE CHE BUFF NON SIA VUOTO 
+                        LUNGSMS=LUNGSMS+6   'I PUNTINI 
+                        SEROUT2 txpc,6, ["LUNGSMS ",#LUNGSMS,10,13]
+                        SEROUT2 txpc,6, ["LUNG VIA ",#LUNGBUFF,10,13]
+                        IF (160-LUNGSMS)< LUNGBUFF THEN    'SE IL MESSAGGIO è TROPPO LUNGO INVIA PIù MESS
+                            HSEROUT ["...",26]
+                            pause 3000
+                            hserin 10000,EXITINVIOSMS,[WAIT("CMGS:"),TMP]
+                            hserout ["AT+CMGS=",34,STR MITTENTE\(LUNGMITT+1),34,13]
+                            PAUSE 2000
+                            hserout ["...",13]
+                            PAUSE 500
+                        
+                        ENDIF
+                        
+                        hserout [" - ",13]
+                        for tmp=0 to LUNGBUFF 'max 150 caratteri altrimenti non ci sta
+                            IF BUFF[tmp]="#" THEN 
+                                tmp=200          
+                            else
+                                if BUFF[tmp]>31 and BUFF[tmp]<128 THEN   'EVITO DI STAMPARE CARATTERI STRANI
+                                    HSEROUT [BUFF[tmp]]
+                                    SEROUT2 txpc,6,[BUFF[tmp]]
+                                ENDIF
+                            ENDIF
+                        NEXT TMP
+                    ENDIF 
+                    HSEROUT [13,10]
+                
+                SELECT CASE MOTIVOCOORD
+                    CASE 1  
+                        'SEROUT2 txpc,6,[ "POLLING"]
+                        hserout ["POLLING"]
+                    CASE 3  
+                        'SEROUT2 txpc,6,[ "MOVE"]
+                        hserout ["MOVE"]
+                    CASE 21
+                        'SEROUT2 txpc,6,[ "AUTO"]
+                        hserout ["AUTO_CONT"]
+                    CASE 5  
+                        'SEROUT2 txpc,6,[ "SOS"]
+                        hserout ["SOS"]
+                END SELECT
+                
+RETURN
+
+
+CHIAMATA:
+'    INTCON3.5=0
+'    CHIAMA=0
+    SEROUT2 TXPC,6,[ "CHIAMATA",13,10]
+    HIGH LD1
+            HSERIN 10000,EXITCHIAMATA,[WAIT ("+CLIP: ",34),STR MITTENTE\20]   'SE DOPO 10 SECONDI NON ARRIVA LA CHIAMATA REINVIO I SETTAGGI    - IN TMP METTO IL +39
+        '***** FINE PROVA
+        
+        HIGH LD1
+        HIGH LD2
+        FOR TMP=0 TO 20
+                TMP1=MITTENTE[TMP]
+                IF TMP1=34 THEN
+                    LUNGMITT=TMP-1
+                    'SEROUT2 TXPC,84,[ "LUNGMITT1: ",#LUNGMITT,13,10]
+                    TMP=35
+                ENDIF
+        NEXT TMP
+            
+        
+        
+        hserout["ATH",13] 
+        pause 1000
+        FOR TMP=0 TO 10
+            TOGGLE LD2
+            PAUSE 200
+        NEXT TMP
+        LOW LD2
+        
+    SEROUT2 TXPC,6,[ "-CHIAMATA DA: "]
+    FOR TMP=0 TO LUNGMITT
+        SEROUT2 TXPC,6,[ MITTENTE [TMP]]
+    NEXT TMP
+    SEROUT2 TXPC,6,[ 13,10]
+'    HSEROUT ["AT&V",13]
+'     PAUSE 1000
+    CERCAMITTENTE=1
+    GOSUB CERCANUMERO       'VERIFICO SE è PRESENTE
+    'GOSUB GESTCHIAMATA
+    IF TROVATO=1 THEN
+        
+
+            SEROUT2 TXPC,6,[ "VOCE INVIO COO",13,10]
+ 
+             
+            READ 710,TMP    'LEGGO SE DEVO RISPONDERE AI NUMERI SALVATI IN MEMORIA O A CHI HA CHIAMATO
+            IF TMP="M" OR TMP="m" THEN 'RISPONDO AL MITTENTE 
+                SEROUT2 TXPC,6,[ "RISPONDO AL MITTENTE",13,10]                                   
+                READ 1023,TMP3
+                TMPW=%00000001
+                FOR TMP2=1 TO POSTROVATO
+                    TMPW=TMPW<<1
+                NEXT TMP2
+                TMP3 = TMP3 | TMPW        ' Set bit TMPW of TMP       'PORTO AD 1 IL BIT               
+                SEROUT2 TXPC,6,[ "NUMERI A CUI INVIARE COORD ",BIN8 TMP3,13,10 ]
+                WRITE 1023,TMP3
+            ENDIF
+            MOTIVOCOORD=1
+            NOTIFICASQUILLO=1
+            GOSUB INVIOCOORDINATE   'E' ARRIVATA UNA RICHIESTA DI COORDINATE TRAMITE SQUILLO, QUINDI NON INVIO L'ULTIMO PUNTO MEMORIZZATO MA SOLO QUELLO CHE OTTENGO DOPO IL FIX            
+        
+    ELSE
+            'DEBUG "NUM KO",13,10
+'            hserout ["+"]
+'            PAUSE 300
+'            hserout ["+"]
+'            PAUSE 300
+'            hserout ["+"]
+            PAUSE 1500
+            hserout ["ATH",13]
+            'hserout ["AT+CHUP",13]
+            PAUSE 1500
+    ENDIF
+
+                          
+EXITCHIAMATA:
+'DEBUG "EXIT CHIAMATA",13,10
+'INTCON3.5=1
+RETURN
+
+
+GESTPOLLING:
+    
+    READ 703,TEMPOPOLCONT    'CONTROLLO SE C'è IL POLLING CONTINUO
+    
+    IF TEMPOPOLCONT=1 THEN
+        'TOGGLE LD2  
+        SEROUT2 TXPC,6,["1 GSMSECTOT ",#GSMSECTOT," - AUTO CONT ",#POLLTIMEC,13,10] 
+
+        IF POLLTIMEC<=GSMSECTOT THEN
+           IF OVERDAYC=0 THEN
+                POLLTIMEC=0
+                READ 704,POLLTIMECh         'RILEGGO IL TEMPO IMPOSTATO
+                READ 705,POLLTIMECl
+                
+                POLLTIMEC=POLLTIMEC+GSMSECTOT 
+                IF POLLTIMEC>=86399 THEN 'SE SFORO LE 23:59:59 ALLORA RIAZZERO
+                    POLLTIMEC=POLLTIMEC-86399
+                    OVERDAYC=1
+                ENDIF
+                'SEROUT2 TXPC,6,["AUTOREPORT=",#POLLTIMEC,13,10]
+
+                MOTIVOCOORD=21 
+                NOTIFICAAUTOC=1        
+                GOSUB INVIOCOORDINATE   'INVIO SOLO FIX
+            ENDIF
+        else
+            OVERDAYC=0
+        ENDIF
+    ENDIF
+    
+    
+    
+
+            
+RETURN
+
+
+
+LEGGISMS:
+'INTCON3.5=0
+
+ 
+        
+        FOR TMP=0 TO 160
+            BUFF[TMP]=13
+        NEXT TMP      
+        
+
+        
+'        SEROUT2 TXPC,6,[ "SMS",13,10 ] 
+
+            RISPOSTA=1
+
+            HSEROUT ["AT+CMGL=",34,"ALL",34,13]
+ 
+            HSERIN 1000,EXITSMS,[SKIP 10,WAIT (34,",",34),STR MITTENTE\25\44] 
+            HSERIN 1000,EXITSMS,[SKIP 1,WAIT (34,",",34),STR ora\25\34]          
+            HSERIN 1000,LEGGISMS,[WAIT (10),STR BUFF\160\10]                     
+                        
+            
+            
+                 
+            LOW LD1
+            LOW LD2
+            FOR TMP=0 TO 6
+                TOGGLE LD1
+                PAUSE 200
+            NEXT TMP
+            LOW LD1
+            
+            SEROUT2 TXPC,6,["AT+CCLK=",34,STR ORA,34,13,10]      'ORA AZZERATA               
+            HSEROUT ["AT+CCLK=",34,STR ORA,34,13]      'ORA AZZERATA 
+            
+            
+            FOR TMP=0 TO 25
+                TMP1=MITTENTE[TMP]
+                IF TMP1=34 THEN
+                    LUNGMITT=TMP
+                    'SEROUT2 TXPC,6,[ "LUNGMITT1: ",#LUNGMITT,13,10 ]
+                    TMP=35
+                ENDIF
+            NEXT TMP
+ 
+            LUNGMITT=LUNGMITT-1      
+            
+        
+            SEROUT2 TXPC,6,[ "-MITTENTE: " ]
+            FOR TMP=0 TO LUNGMITT
+                SEROUT2 TXPC,6,[ MITTENTE[TMP] ]
+            NEXT TMP
+            SEROUT2 TXPC,6,[ 13,10  ]
+            
+         
+         
+                    
+            FOR TMP=0 TO 160
+                'TMP1=BUFF[TMP]
+                IF BUFF[TMP]=13 THEN
+                    LUNGMESS=TMP
+                    TMP=170
+                ENDIF
+            NEXT TMP
+            'SEROUT2 TXPC,6,[ "LUNGMESS : ",#LUNGMESS,13,10 ]
+            'SEROUT2 TXPC,6,[ "BUFF[0]: ",BUFF[0],13,10 ]
+            SEROUT2 TXPC,6,[ "-MESSAGGIO: "  ]
+            FOR TMP=0 TO LUNGMESS
+                SEROUT2 TXPC,6,[ BUFF[TMP] ]
+            NEXT TMP
+            SEROUT2 TXPC,6,[ 13,10  ]
+            FOR TMP1=0 TO 4    
+                PWD[TMP1]=0     'AZZERO LA PASSWORD
+            NEXT TMP1
+            
+            FOR TMP=0 TO LUNGMESS          'METTO IN PWD[X] LA PASSWORD
+                IF BUFF[TMP]=";" THEN
+                    'SEROUT2 TXPC,6,[ "PUNTO E VIRGOLA",13,10 ]
+                    TMP=TMP+1
+                    FOR TMP1=0 TO 4    
+                        PWD[TMP1]=BUFF[TMP+TMP1]
+                    NEXT TMP1
+                    TMP=200
+                ENDIF
+            NEXT TMP
+            SEROUT2 TXPC,6,[ "-PWD: "  ]
+            FOR TMP=0 TO 4
+                SEROUT2 TXPC,6,[ PWD[TMP]]
+            NEXT TMP
+            SEROUT2 TXPC,6,[ 13,10  ]
+            
+            'GOSUB VERIFICASMS
+             '   SEROUT2 TXPC,6,[ "VERIFICASMS",13,10 ]
+    
+
+                
+            
+CANCELLASMS:            
+            'PAUSE 3000
+            
+
+
+'            SEROUT2 txpc,6,[ "-CANC TUTTO",13,10 ]           
+            HSEROUT ["AT+CMGD=0,4",13]   'CANCELLO TUTTI I MESSAGGI
+            HSERIN 10000,EXITCANCELLASMS,[wait ("OK")]
+            PAUSE 1000  
+
+EXITCANCELLASMS:
+
+
+            CERCAMITTENTE=1
+            GOSUB CERCANUMERO
+'            IF TROVATO=0 THEN
+'                SEROUT2 TXPC,6,[ "-NO NUMERO",13,10 ]
+'            ENDIF
+            GOSUB VERIFICAPWD
+            IF TROVATO=1 OR PWDOK=1 THEN    'SE IL NUMERO è IN MEMORIA O LA PASSWORD è OK VADO AVANTI O IL FILTRO SU SMS è DISABILITATPO
+                'SEROUT2 TXPC,6,[ "TROVATO=1 OR PWDOK=1",13,10 ]
+                MULTIMESS=1
+                WHILE MULTIMESS=1
+                '    SEROUT2 TXPC,6,[ "-MULTI",13,10]
+                    IF LUNGMITT>1 THEN
+                        GOSUB ANALIZZASMS
+                        'pause 3000
+                       ' RETURN
+                    ELSE
+                        MULTIMESS=0
+                    ENDIF
+                WEND
+            ENDIF
+
+
+EXITSMS:
+            PAUSE 200
+        
+RETURN
+
+
+ANALIZZASMS:
+
+    SEROUT2 TXPC,6,["-ANALIZZA SMS ",BUFF[0],13,10]
+    
+    IF BUFF[0]<>"?" THEN    'SE C'è IL ? VUOL DIRE CHE è UN MESS TIPO TR102 E ALLORA NON PUò ESSERE UN MULTIMESS
+        FOR TMP=0 TO LUNGMESS
+            IF BUFF[TMP]="," THEN
+                MULTIMESS=1
+                POSMULTIMESS=TMP
+                TMP=200
+                SEROUT2 TXPC,6,["MULTI",13,10 ]
+                'pause 1000
+            ELSE
+                MULTIMESS=0
+                'SEROUT2 TXPC,6,["NON MULTIMESSAGGIO",13,10 ]
+            ENDIF
+        NEXT TMP
+    ELSE
+        MULTIMESS=0
+    ENDIF
+    
+    POS=0
+    FRASE=0
+    SELECT CASE BUFF[0]
+               
+            
+        CASE "A","a"        
+            IF BUFF[1]="U" OR BUFF[1]="u" THEN    'AUTO
+                    SEROUT2 TXPC,6,["-AUTO"]
+                    
+                    FRASE=9                
+                    IF BUFF[4]<>"?" THEN
+                        SELECT CASE BUFF[4]
+                            
+                            
+                        CASE "C","c"    'AUTOC:on   AUTOC:off  
+                            IF BUFF[6]="O" OR BUFF[6]="o" THEN
+                                IF BUFF[7]="N" OR BUFF[7]="n" THEN
+                                    WRITE 703,1
+                                ELSE
+                                    WRITE 703,0
+                                ENDIF
+                            ELSE   'TEMPO  AUTOC:10:05:06
+                                
+                                ORAIMP=((BUFF[6]-48)*10)+(BUFF[7]-48)
+                                MINUTIIMP=((BUFF[9]-48)*10)+(BUFF[10]-48)
+                                SECIMP=0            '((BUFF[12]-48)*10)+(BUFF[13]-48)  
+                                
+                                SEROUT2 TXPC,6,["-TIME IMP CON ",#ORAIMP,32,#MINUTIIMP,32,#SECIMP,13,10]
+                                POLLTIMEC=((ORAIMP*60)*60)+(MINUTIIMP*60)+SECIMP
+                                WRITE 704,POLLTIMECH
+                                WRITE 705,POLLTIMECL  
+                                POLLTIMEC=POLLTIMEC+GSMSECTOT 
+                                IF POLLTIMEC>=86399 THEN 'SE SFORO LE 23:59:59 ALLORA RIAZZERO
+                                    POLLTIMEC=POLLTIMEC-86399
+                                    OVERDAYC=1
+                                ENDIF                                  
+                            ENDIF                
+                                    
+                        END SELECT
+                    ENDIF
+            ELSE
+                    FRASE=6
+                    IF BUFF[3]<>"?" THEN
+                        SELECT CASE BUFF[1]  'AMI:x AAI ARI   AGE
+                            CASE "R","r"
+                                WRITE 710,BUFF[4]                            
+                        END SELECT
+                    ENDIF
+            ENDIF
+                
+            
+        CASE "C","c"
+            SELECT CASE BUFF[1]
+                CASE "E","e"   'CeLL:ON
+                    IF BUFF[6]="N" OR BUFF[6]="n" THEN
+                        WRITE 711,1
+                    ELSE
+                        WRITE 711,0
+                    ENDIF 
+                    FRASE=12                 
+                CASE "O","o"
+     '               SEROUT P2,2,[ "CoO" ]    
+        '            SEROUT2 TXPC,6,[ "-MITTENTE: " ]
+                    FOR TMP=0 TO LUNGMITT
+        '                SEROUT2 TXPC,6,[ MITTENTE[TMP] ]
+                        WRITE (380+tmp),MITTENTE[TMP]
+                    NEXT TMP
+        '            SEROUT2 TXPC,6,[ 13,10  ]
+                    WRITE 400,LUNGMITT
+                    
+                    MOTIVOCOORD=1
+                    NOTIFICACOO=1
+                    'GOSUB INVIOCOORDINATE   'E' ARRIVATA UNA RICHIESTA DI COORDINATE TRAMITE SQUILLO, QUINDI NON INVIO L'ULTIMO PUNTO MEMORIZZATO MA SOLO QUELLO CHE OTTENGO DOPO IL FIX            
+                    FRASE=99    'LA FRASE 99 CORRISPONDE ALL'INVIO DELLE COORDINATE
+                CASE "G","g"   'CgPS:ON
+                    IF BUFF[4]<>"?" THEN
+                        IF BUFF[6]="N" OR BUFF[6]="n" THEN
+                            WRITE 800,1
+                        ELSE
+                            WRITE 800,0
+                        ENDIF 
+                    endif
+                    FRASE=34  
+             end SELECT           
+        
+           
+        CASE "F","f"           'LE MODALITà DI INVIO DELLE COORDINATE
+            'SEROUT P2,2,[ "FORS:x"] FORS:X FORE:X FORU:X  FORS?
+                FRASE=5
+                IF BUFF[4]<>"?" THEN
+                    SELECT CASE BUFF[3]                      
+                        CASE "S","s"
+                            WRITE 370,(BUFF[5]-48)                    
+                  
+                        'CASE "U","u"
+                        '    WRITE 372,(BUFF[5]-48)                                            
+                    END SELECT                    
+                endif
+             'GOSUB INVIOSMS    
+            
+        CASE "G","g"
+            SELECT CASE BUFF[1]
+                CASE "P","p"
+                    FRASE=16
+                    select CASE BUFF[4]                
+                    CASE "A","a"    'GPRSAPN
+                        
+                        IF BUFF[7]=":" THEN
+                            FOR TMP=0 TO 30
+                                tmp2=tmp+8
+                                IF BUFF[TMP2]=","  OR BUFF[TMP2]=";" OR TMP2=LUNGMESS THEN   'SE TROVO IL ; O FINISCO IL MESS VUOL DIRE CHE IL MESS è FINITO E SLAVO IL NUMERO           
+                                    WRITE 500+TMP,"#"
+                                    tmp=31
+                                ELSE                 
+                                    WRITE 500+TMP,BUFF[TMP2]
+                                    SEROUT2 TXPC,6,[BUFF[TMP2]]
+                                ENDIF
+                            NEXT TMP
+                        else
+                            FOR TMP=0 TO 30               
+                                    WRITE 500+TMP,255
+                            NEXT TMP
+                            
+                        ENDIF
+                    CASE "U","u"    'GPRSUSR
+                        IF BUFF[7]=":" THEN
+                            FOR TMP=0 TO 30
+                                tmp2=tmp+8
+                                IF BUFF[TMP2]=","  OR BUFF[TMP2]=";" OR TMP2=LUNGMESS THEN   'SE TROVO IL ; O FINISCO IL MESS VUOL DIRE CHE IL MESS è FINITO E SLAVO IL NUMERO 
+                                    WRITE 530+TMP,"#"
+                                    tmp=31
+                                ELSE                 
+                                    WRITE 530+TMP,BUFF[TMP2]
+                                    SEROUT2 TXPC,6,[BUFF[TMP2]]
+                                ENDIF
+                            NEXT TMP
+                        else
+                            FOR TMP=0 TO 30               
+                                    WRITE 530+TMP,255
+                            NEXT TMP
+                        ENDIF
+    
+                    
+                        
+                        
+                    CASE "P","p"    'GPRSPWD
+                        FOR TMP=0 TO 30               
+                                    WRITE 560+TMP,255
+                        NEXT TMP
+                        IF BUFF[7]=":" THEN
+                            FOR TMP=0 TO 30
+                                tmp2=tmp+8
+                                IF BUFF[TMP2]=","  OR BUFF[TMP2]=";" OR TMP2=LUNGMESS THEN   'SE TROVO IL ; O FINISCO IL MESS VUOL DIRE CHE IL MESS è FINITO E SLAVO IL NUMERO 
+                                    WRITE 560+TMP,"#"
+                                    tmp=31
+                                ELSE                 
+                                    WRITE 560+TMP,BUFF[TMP2]
+                                    SEROUT2 TXPC,6,[BUFF[TMP2]]
+                                ENDIF
+                            NEXT TMP 
+                        ENDIF
+                    CASE ELSE   'GPS ON OFF
+                        IF BUFF[2]="S" OR BUFF[2]="s" THEN
+                            'SEROUT P2,2,[ "GPS:ON" ]
+                            IF BUFF[3]<>"?" THEN
+                                IF BUFF[5]="F" OR BUFF[5]="f" THEN
+                                    GOSUB GPSOFF         'SPENGO GPS 
+                                    WRITE 811,0
+                                ELSE
+                                    GOSUB GPSON          'ACCENDO GPS 
+                                    WRITE 811,1
+                                ENDIF
+                            endif
+                            FRASE=21
+                            'GOSUB INVIOSMS
+                        ENDIF
+                    END SELECT
+                    
+                    
+         
+                
+
+            END SELECT         
+        
+        CASE "I","i"    'imei
+'            SELECT CASE BUFF[1]
+'                CASE "N","n"    
+'                    IF BUFF[4]<>"?" THEN
+'        '                SELECT CASE BUFF[4]
+                         
+'        '                    CASE "S"    'SMS
+                                
+'        '                    CASE "E"    'EMAIL
+                                
+'        '                    CASE "U"    'URL
+                            
+'        '                    CASE "T"    'TCP
+                            
+'        '                    CASE "3"    'SMS & EMAIL
+                         
+'        '                    CASE ELSE
+                                          
+'        '                END SELECT
+'                        WRITE 700,BUFF[4]
+'                    ENDIF
+'                    FRASE=12
+'                CASE "M","m"    'IMEI
+                    FRASE=22
+                
+            'END SELECT
+                
+         CASE "N","n"    
+            SELECT CASE BUFF[1]
+            CASE "U","u"
+                SEROUT2 TXPC,6,[  "-NUM",13,10 ]
+                POSIZIONE=BUFF[3]-48
+                'NUMx+393355760937;12345 PER LA SPAGNA MEMORIZZO ANCHE IL, +34
+                IF BUFF[4]="+" THEN    'SE IL MESSAGGIO  è NUMx+39...
+                    TMP1=((POSIZIONE-1)*19)
+                    read tmp1,tmp
+                    IF TMP=255 OR PWDOK=1 THEN  ' SE IN QUELLA POSIZIONE NON C'è NESSUN NUMERO O LA PASSOWRD è CORRETTA ALLORA MEMROIZZO IL MESS
+                        SEROUT2 TXPC,6,["-CANC POS ",#POSIZIONE,13,10 ]
+                        FOR TMP=0 TO 18
+                            TMP1=((POSIZIONE-1)*19+TMP)
+                            WRITE TMP1,255
+                        NEXT TMP
+                        FOR TMP=4 TO LUNGMESS
+                            'SEROUT2 TXPC,6,[  "TMP ",#TMP,13,10 ]
+                            IF BUFF[TMP]=","  OR BUFF[TMP]=";" OR TMP=LUNGMESS THEN   'SE TROVO IL ; O FINISCO IL MESS VUOL DIRE CHE IL MESS è FINITO E SLAVO IL NUMERO 
+                                LUNGNUM=TMP-1-4
+                                'SEROUT2 TXPC,6,["-LUNGNUM ",#lungnum,13,10 ]
+                                GOSUB MEMONUMERO
+                                FRASE=2                        
+                                TMP=200 'SERVE PER USCIR DAL CICLO DI FOR
+                            ELSE
+                                NUMERO[TMP-4]=BUFF[TMP]
+                                SEROUT2 TXPC,6,[ NUMERO[TMP-4] ]
+                            ENDIF
+                        NEXT TMP
+                    ELSE
+                        FRASE=1
+                    ENDIF
+                
+                ELSE
+                        FRASE=2
+                    if BUFF[3]<>"?" then                        'SE IL MESSAGGIO  è NUMx                    
+                        SEROUT2 TXPC,6,["-CANC POS ",#POSIZIONE,13,10 ]
+                        FOR TMP=0 TO 18
+                            TMP1=((POSIZIONE-1)*19+TMP)
+                            WRITE TMP1,255
+                        NEXT TMP
+                    endif                   
+                    
+                ENDIF
+            CASE "A","a"    'NAME
+                SEROUT2 TXPC,6,["NOME ",13,10 ]
+                    IF BUFF[4]=":" THEN
+                        FOR TMP=0 TO 30
+                            tmp2=tmp+5
+                            IF BUFF[TMP2]=","  OR BUFF[TMP2]=";" OR TMP2=LUNGMESS THEN   'SE TROVO IL ; O FINISCO IL MESS VUOL DIRE CHE IL MESS è FINITO E SLAVO IL NUMERO 
+                                WRITE 751+TMP,"#"
+                                tmp=31
+                            ELSE                 
+                                WRITE 751+TMP,BUFF[TMP2]
+                                SEROUT2 TXPC,6,[BUFF[TMP2]]
+                            ENDIF
+                        NEXT TMP
+                    ENDIF
+                    FRASE = 23
+            END SELECT
+                                              
+        CASE "P","p"
+            SELECT CASE BUFF[1]    
+
+                
+            CASE "W","w"
+                SEROUT2 TXPC,6,["-PWD"]
+                IF PWDOK=1 THEN
+                    'SEROUT2 TXPC,6,[ "-CAMBIO PWD",13,10]
+                    FOR TMP=0 TO 4
+                        WRITE (1001+TMP),BUFF[3+TMP]
+'                        SEROUT2 TXPC,6,[  BUFF[3+TMP]]
+                    NEXT TMP
+'                        SEROUT2 TXPC,6,[ 13,10  ]
+                    FRASE=3
+                ELSE
+                    FRASE=1
+                ENDIF
+            END SELECT
+            
+        CASE "R","r"    'RES
+            SELECT CASE BUFF[1]
+            CASE "E","e"       'VERIFICARE
+                SELECT CASE BUFF[2]
+                CASE "S","s"
+                    if PWDOK=1 then
+                        SEROUT2 TXPC,6,[ "-RESET",13,10 ] 
+                        WRITE 1001,"1"
+                        WRITE 1002,"2"
+                        WRITE 1003,"3"
+                        WRITE 1004,"4"
+                        WRITE 1005,"5"
+                        WRITE 370,1    'FORMATO MESS LINK
+                        WRITE 700,0   ' INVIO L'ALLARME SE C'è MOVIMENTO (CAMBIO CELLA)
+                        WRITE 709,"S"      ' INVIO I MESSAGGI TRAMITE SMS E EMAIL QUANDO C'è L'AUTOREPORT
+                        WRITE 710,"M"      ' INVIO I MESSAGGI A CHI LO HA RICHIESTO
+                        WRITE 711,0      'INVIA DATI SULLE CELLE
+                        WRITE 703,0    'INVIO IN POLLING CONTINUO DISATTIVATO
+                        WRITE 704,14    'ORE TEMPO POLLING CONTINUO
+                        WRITE 705,16    'MINUTI TEMPO POLLING CONTINUO
+                        WRITE 768,60      'SLEEP PER 240 SECCNDI.. OGNI 240 SEOCNDI VIENE LETTO SE C'è UN SMS..
+                        WRITE 769,30      'SLEEP PER 30 SECCNDI.. OGNI 30 SECONDI VIENE LETTO SE SI è MOSSO
+                        'GPS
+                        WRITE 800,1      'COORDINATE DA GPS
+                        WRITE 811,1      'GPS NORMALMENTE ACCESO
+                        WRITE 835,3      'num min di satelliti per l'invio
+                        'FINE GPS
+                        
+                        WRITE 1006,0                      'SE 0 PRIMA ACCENSIONE
+                        WRITE 1007,0                      'SE 0 NON FACCIO IL REVERSEGEOCODING ALTRIMENTI LO FACCIO
+                        WRITE 1021,255                    'SMS ABILITATO SU TUTTI I NUMERI
+                        WRITE 1023,0                      'QUI SALVO I NUMERI CHE HANNO CHIESTO LE COORDINATE CON SQUILLO
+
+                        frase=20
+                    ELSE
+                        FRASE=1 
+                    endif 
+                
+                    CASE "V","v"     'REV:ON 
+                            If BUFF[3]<>"?" THEN
+                                IF BUFF[5]="F" OR BUFF[5]="f" THEN
+                                    WRITE 1007,0
+                                ELSE
+                                    WRITE 1007,1
+                                ENDIF
+                            ENDIF
+                            FRASE=26
+                END SELECT
+            
+
+
+            CASE "I","i"
+'                    if BUFF[2]="P" OR BUFF[2]="p" THEN
+'                        IF BUFF[3]<>"?" THEN            
+'                            SEROUT2 TXPC,6,[ "-RIPRISTINO",13,10 ]
+'                            TMP=BUFF[3]-48
+'                            WRITE 1009,TMP
+                            
+'                        ENDIF
+                                      
+'                    ELSE
+                        SEROUT2 TXPC,6,[ "-NO RISP",13,10 ]
+                        RISPOSTA=0
+'                    ENDIF
+            END SELECT
+            
+                
+            CASE "S","s"    'SMS 
+            'IF BUFF[1]="M" or BUFF[1]="m" THEN     'SMs
+                select case buff[2]
+                    case "S","s"
+                        FRASE=2
+                        SEROUT2 TXPC,6,[ "-SMS",13,10]
+                            FOR TMP=0 TO LUNGMESS
+                                IF BUFF[TMP]=":" THEN
+                                    
+                                    POSPUNTI=TMP
+                                    TMP=200
+                                    SEROUT2 TXPC,6,[ ": ",#POSPUNTI,13,10 ]
+                                    pause 1000
+                                ELSE
+                                    FRASE=0
+                                    'SEROUT2 TXPC,6,[  "NON MULTIMESSAGGIO",13,10]
+                                ENDIF
+                            NEXT TMP
+                            
+                            READ 1021,TMP3
+                            GOSUB CALCOLANUM
+                            WRITE 1021,TMP3
+                            FRASE=2
+                            
+                    
+                    case "A","a"    'STaTO
+                        FRASE=27    
+                    case "E","e"    'SLeEP:xxx
+                        FRASE=8 
+                        TMP=(BUFF[6]-48)*100+(BUFF[7]-48)*10+(BUFF[8]-48)  
+                        write 768,tmp 
+                        
+                    case "T","t" 'SAt:x
+                        IF BUFF[3]<>"?" THEN
+                            TMP=BUFF[4]-48
+                            IF TMP>=1 AND TMP<=9 THEN
+                                WRITE 835,TMP                        
+                            ENDIF
+                        endif
+                        FRASE=33         
+                END SELECT
+                
+        CASE "T","t"
+            SELECT CASE BUFF[1]
+                CASE "M","m"   'TMN TNF
+                    IF BUFF[3]<>"?" THEN
+                        
+                        SELECT CASE BUFF[2]
+                            
+                            CASE "A","a"                    'TMA:ON
+                                IF BUFF[5]="N" OR BUFF[5]="n" THEN
+                                    WRITE 700,1
+                                ELSE
+                                    WRITE 700,0
+                                ENDIF
+                        END SELECT
+                    ENDIF
+                    FRASE=7
+                    
+            END SELECT
+  
+            
+                        
+        CASE "V","v"    'VER?
+            IF BUFF[3]="?" THEN     
+                    FRASE=29
+            ENDIF
+                
+    END SELECT
+    
+'    IF POS=0 THEN
+'        GOSUB INVIOSMS
+'        POS=0
+'    ENDIF    
+    
+    
+            IF RISPOSTA=1 AND FRASE<>0 THEN      'SE RICHIEDO LA RISPOSTA INVIO SMS SE LA FRASE=0 NON INVIO
+                WRITE 200+FRASE,1       ' SCRIVO IN MEMORIA CHE DEVO RISPONDERE        
+'                SEROUT2 TXPC,6,[ "SALVO IN MEMORIA L'INVIO DELLA FRASE ",#FRASE,13,10 ]
+                IF MULTIMESS=0 THEN 'SE HO FINITO I MULTIMESSAGGI VADO A RISPONDERE
+                    GOSUB PREPARAINVIOSMS
+                ENDIF
+            ENDIF
+            
+            IF MULTIMESS=1 THEN
+                FOR TMP=0 TO LUNGMESS
+                    BUFF[TMP]=BUFF[TMP+POSMULTIMESS+1]
+                NEXT TMP
+                SEROUT2 TXPC,6,[ "-MESSAGGIO: " ]
+                FOR TMP=0 TO LUNGMESS
+                    SEROUT2 TXPC,6,[ BUFF[TMP] ]
+                NEXT TMP
+                SEROUT2 TXPC,6,[ 13,10   ]
+            ENDIF
+            
+RETURN
+
+
+RILEGGIIMP:
+                   
+    POLLTIMEC=0
+    READ 704,POLLTIMECh         'RILEGGO IL TEMPO IMPOSTATO
+    READ 705,POLLTIMECl                
+    POLLTIMEC=POLLTIMEC+GSMSECTOT 
+    SEROUT2 TXPC,6,[ "POLLTIMEC  ",#POLLTIMEC,13,10]
+    IF POLLTIMEC>=86399 THEN 'SE SFORO LE 23:59:59 ALLORA RIAZZERO
+        POLLTIMEC=POLLTIMEC-86399
+        OVERDAYC=1
+    ENDIF
+    
+
+
+    
+    
+RETURN
+PREPARAINVIOSMS:
+
+    'SEROUT2 TXPC,6,[ "PREPARAINVIOSMS",13,10]
+    FOR ADDRL2=200 TO 300     'VERIFICO DALLA LOCAZIONE 200 ALLA 400 QUALI MESSA DEVO INVIARE
+        READ ADDRL2,TMP
+            IF TMP=1 THEN       'HO TROVATO IL MESS
+                FRASE=ADDRL2-200
+    '            SEROUT2 TXPC,6,[ "TROVATO NELLA LOCAZIONE ",#ADDRL2," LA FRASE ",#FRASE,13,10]                
+                IF FRASE=99 THEN
+                    GOSUB INVIOCOORDINATE
+                ELSE
+                    GOSUB INVIOSMS
+                ENDIF
+            ENDIF
+    NEXT ADDRL2
+    
+    'SEROUT2 TXPC,6,[ "CANCELLO LA MEMORIA",13,10 ]
+    FOR ADDRL2=200 TO 300
+        WRITE ADDRL2,0        'SEGNO CHE HO INVIATO TUTTI I MESS
+    NEXT ADDRL2
+
+RETURN
+
+
+VERIFICAPWD:
+    PWDOK=0
+    ERR1=0
+
+   	For TMP=0 TO 4
+   	    
+		READ (1001+TMP),DATO
+		'SEROUT2 TXPC,84,["PWD LETTA ",DATO,13,10]
+		'SEROUT2 TXPC,84,["PWD ARR   ",PWD[TMP],13,10]
+		IF PWD[TMP]<>DATO THEN
+			ERR1=1
+			SEROUT2 TXPC,84,["PWD U KO",13,10]
+		EndIF    
+	Next TMP
+
+    
+	IF ERR1=0 Then
+        SEROUT2 TXPC,84,["PWD OK",13,10]
+        PWDOK=1 
+    ENDIF  
+    
+
+RETURN                     
+    
+
+
+CALCOLANUM:
+
+        'SEROUT2 TXPC,6,[ "-NUMERI LETTI ",BIN TMP3,13,10 ]
+        'SEROUT2 TXPC,6,[ "-BUFF3 ",BUFF[3],13,10]
+        FOR TMP=3 TO POSPUNTI     
+            IF BUFF[TMP]>48 AND BUFF[TMP]<57 THEN
+                'PORTO AD UNO IL BIT PERTANTO è COME SE FOSSE ON
+                    TMP1=BUFF[TMP]-48-1       'TOLGO 48 PER TRASFORMARLO IN UN NUMERO E TOLGO 1 PER PERCHè CONTO DA 0
+                    'SEROUT2 TXPC,6,[ "-TMP1 ",#TMP1,13,10]
+                    TMPW=%00000001
+                    FOR TMP2=1 TO TMP1
+                        TMPW=TMPW<<1
+                    NEXT TMP2
+                    'SEROUT2 TXPC,6,[ "-TMPW ",BIN TMPW,13,10 ]
+                    TMP3 = TMP3 | TMPW        ' Set bit TMPW of TMP       'PORTO AD 1 IL BIT          
+                    'SEROUT2 TXPC,6,[ "-NUMERI ON ",BIN TMP3,13,10 ]
+                    'SEROUT2 TXPC,6,[ "-ON OFF ",BUFF[POSPUNTI+2],13,10 ]
+                IF BUFF[POSPUNTI+2]="F" OR BUFF[POSPUNTI+2]="f" THEN    'VERIFICO SE è OFF
+                'SE OFF RIPORTO A ZERO IL BIT
+                    TMP3 = TMP3 ^ TMPW                      
+                    'SEROUT2 TXPC,6,[ "-NUMERI OFF ",BIN TMP3,13,10 ]
+                ENDIF
+            ENDIF
+        NEXT TMP
+
+RETURN
+
+LEGGINUMERI:
+        SEROUT2 TXPC,6,["LEGGI NUMERI ",13,10]  
+
+            FOR TMPL=0 TO 19
+                NUMERO[TMPL]=0            
+            NEXT TMPL
+            'SEROUT2 TXPC,6,[ "1 NUMERO -$GPRMC",STR D\75,13,10 ]
+            FOR TMPL=0 TO 19
+                TMPL1=((POSIZIONE-1)*20+TMPL)
+                READ TMPL1,DATO
+                IF DATO<>255 THEN
+                    NUMERO[TMPL]=DATO
+                ELSE
+                    LUNGNUM=TMPL-1
+                    'SEROUT2 TXPC,6,[ "LUNGNUM ",#LUNGNUM,13,10]
+                    RETURN
+                    TMPL=25
+                ENDIF    
+            NEXT TMPL
+RETURN
+
+INVIOSMSALLARME:    'prima di chiamare questa routine devo chiamare impostare la FRASE
+
+
+'     SEROUT2 TXPC,6,[ "INVIOSMSALLARME INTCON  ",bin8 INTCON,13,10 ]
+'     SEROUT2 TXPC,6,[ "INVIOSMSALLARME INTCON2 ",bin8 INTCON2,13,10 ]
+'     SEROUT2 TXPC,6,[ "INVIOSMSALLARME INTCON3 ",bin8 INTCON3,13,13,10,10 ]
+            
+
+               
+            'SEROUT2 TXPC,6,[ "-TMP ",BIN NUMERISMS,13,10]
+            LEGGINUM=%00000001     
+            for LEGGINUM2=0 to 7
+'                SEROUT2 TXPC,6,[ #LEGGINUM2," 3-$GPRMC",STR DAT\75,13,10 ]
+                tmp2 = NUMERISMS & LEGGINUM ' Isolate bit LEGGINUM2 of TMP
+                SEROUT2 TXPC,6,[ "-NUMERI ISOLATO ",BIN TMP2,13,10 ]
+                IF TMP2<>0 THEN
+                    POSIZIONE=LEGGINUM2+1
+'                    SEROUT2 TXPC,6,[ "1 legginumeri -$GPRMC",STR DAT\75,13,10 ]
+' SEROUT2 txpc,6,["3 $GPRMC"]
+'                        FOR TMP=0 TO 100
+'                            LEGGINUM2=DAT[TMP]
+'                            IF LEGGINUM2<>13 THEN
+                                
+'                                pause 100
+'                                SEROUT2 txpc,6,[LEGGINUM2]
+'                            ELSE
+'                                'hserout [26]
+'                                SEROUT2 txpc,6,["TROVATO 13",13,10]
+'                                TMP=101
+'                            ENDIF
+'                        NEXT TMP
+                    gosub legginumeri
+'  SEROUT2 txpc,6,["4 $GPRMC"]
+'                        FOR TMP=0 TO 100
+'                            LEGGINUM2=DAT[TMP]
+'                            IF LEGGINUM2<>13 THEN
+                                
+'                                pause 100
+'                                SEROUT2 txpc,6,[LEGGINUM2]
+'                            ELSE
+'                                'hserout [26]
+'                                SEROUT2 txpc,6,["TROVATO 13",13,10]
+'                                TMP=101
+'                            ENDIF
+'                        NEXT TMP
+'                    SEROUT2 TXPC,6,[ "2 legginumeri -$GPRMC",STR DAT\75,13,10 ]
+                    SEROUT2 TXPC,6,[ "NUMERO "]
+'                    FOR TMP=0 TO 74
+'                        SEROUT2 TXPC,6,[ DAT[TMP]]
+'                    NEXT TMP
+                    'SEROUT2 TXPC,6,[13,10]
+                    FOR TMP3=0 TO LUNGNUM
+                        MITTENTE[TMP3]=NUMERO[TMP3]
+                        SEROUT2 TXPC,6,[ MITTENTE[TMP3]]
+                    NEXT TMP3
+'                    SEROUT2 TXPC,6,[ "1 MITTENTE -$GPRMC",STR DAT\75,13,10 ]
+'                    SEROUT2 TXPC,6,[ "* MITTENTE -$GPRMC"]
+'                    FOR TMP=0 TO 74
+'                        SEROUT2 TXPC,6,[ DAT[TMP]]
+'                    NEXT TMP
+                    SEROUT2 TXPC,6,[13,10]
+                    LUNGMITT=LUNGNUM
+                    IF LUNGMITT<>0 AND LUNGMITT<>255 THEN                        
+                        GOSUB INVIOSMS                                           
+                    ENDIF
+                     'SEROUT2 txpc,6,["5 $GPRMC"]
+'                        FOR TMP=0 TO 100
+'                            LEGGINUM2=DAT[TMP]
+'                            IF LEGGINUM2<>13 THEN
+                                
+'                                pause 100
+'                                SEROUT2 txpc,6,[LEGGINUM2]
+'                            ELSE
+'                                'hserout [26]
+'                           '     SEROUT2 txpc,6,["TROVATO 13",]
+'                                TMP=101
+'                            ENDIF
+'                        NEXT TMP
+'                    SEROUT2 TXPC,6,[ "2 MITTENTE -$GPRMC",STR DAT\75,13,10 ]
+                ENDIF 
+                LEGGINUM=LEGGINUM<<1
+            NEXT LEGGINUM2
+            WRITE 1023,0
+RETURN
+
+
+
+INVIOSMS:
+
+'     SEROUT2 TXPC,6,[ "INVIOSMS INTCON  ",bin8 INTCON,13,10 ]
+'     SEROUT2 TXPC,6,[ "INVIOSMS INTCON2 ",bin8 INTCON2,13,10 ]
+'     SEROUT2 TXPC,6,[ "INVIOSMS INTCON3 ",bin8 INTCON3,13,10,13,10 ]    
+
+            'HSEROUT ["AT+CNMI=3,0,0,0",13]
+    
+    TENTATIVI=0
+    
+REINVIOSMS:
+'    SEROUT2 TXPC,6,[ "INVIO FRASE ",#FRASE,13,10 ]
+
+    HIGH LD2
+        
+    hserout ["ATE0",13]
+    SEROUT2 TXPC,6,[ "ECHO OFF",13,10 ] 
+    PAUSE 2000
+
+'     SEROUT2 TXPC,6,[ "REINVIOSMS INTCON  ",bin8 INTCON,13,10 ]
+'     SEROUT2 TXPC,6,[ "REINVIOSMS INTCON2 ",bin8 INTCON2,13,10 ]
+     SEROUT2 TXPC,6,[ "INVIO SMS A ",STR MITTENTE\(LUNGMITT+1),13,10 ]
+
+    hserout ["AT+CMGS=",34,STR MITTENTE\(LUNGMITT+1),34,13]
+    
+    HSERIN 2000,EXITINVIOSMS,[wait (">")]
+    PAUSE 200
+
+CAMBIOFRASE:
+    SELECT CASE FRASE
+        CASE 0
+            hserout ["Wrong SMS"]        
+        CASE 1
+            hserout ["Insert PWD"]
+        CASE 2
+            IF PWDOK=1 THEN                
+                TMPW=%00000001
+                FOR POSIZIONE=1 TO 8
+                    gosub LEGGINUMERI
+                    READ 1021,TMP
+                    tmp2 = tmp & tmpw ' Isolate bit TMP1 of TMP
+                    'SEROUT2 TXPC,6,[ "-NUMERI ISOLATO ",BIN TMP2,13,10]
+                    IF TMP2<>0 THEN                            
+                        tmp3="S"
+                    else
+                        tmp3=32
+                    ENDIF 
+                    
+                    
+'                    READ 1020,TMP
+'                    tmp2 = tmp & tmpw ' Isolate bit TMP1 of TMP
+'                    SEROUT2 TXPC,6,[ "-NUMERI ISOLATO ",BIN TMP2,13,10]
+'                    IF TMP2<>0 THEN                            
+'                        TMP4="V"
+'                    else
+'                        TMP4=32
+'                    ENDIF 
+                    TMPW=TMPW<<1
+                    
+                    
+                    hserout ["Pos",#POSIZIONE," ",TMP3," ",STR NUMERO\LUNGNUM+1,13,10]
+                NEXT POSIZIONE           
+            ELSE
+                FRASE=1
+                GOTO CAMBIOFRASE
+            ENDIF
+            
+        CASE 3
+            hserout ["PWD modified"]
+        CASE 4
+            hserout [" "]
+        CASE 5
+            READ 370,TMP
+            hserout ["Format:",13,10,"SMS:   ",#tmp,13,10]
+
+            'READ 372,TMP
+            'hserout ["URL:   ",#tmp,13]
+            
+            
+        CASE 6
+            'hserout ["Impostazioni sensore di movimento",13]    
+            'read 706,tmp
+            'hserout ["Sensibilita' sensore ",#tmp,13]    
+            'read 707,tmp
+            'hserout ["Secondi per fermata ",#tmp,13]
+            
+            hserout ["Notifications"] 
+            READ 709,TMP
+            hserout [13,10,"Autoreport: "]            
+            GOSUB SCELTAFORMATO
+            READ 710,TMP
+            hserout [13,10,"Polling: "]            
+            GOSUB SCELTAFORMATO
+            
+        CASE 7
+            read 700,tmp
+            hserout ["Move alarm "]        
+            if tmp=0 then
+                hserout ["off"]        
+            else
+                hserout ["on"]        
+            endif
+            
+        CASE 8
+            READ 768,TMP       
+            hserout ["Sleep time: ",#tmp," sec"]            
+            
+                   
+        CASE 9
+            POLLTIMEC=0
+            READ 704,POLLTIMECH
+            READ 705,POLLTIMECL
+            READ 703,tmp
+            hserout ["Continuous report: "]
+            IF TMP=1 THEN
+                hserout ["on",13,10]
+            else
+                hserout ["off",13,10]
+            endif
+            ORAIMP=(POLLTIMEC/3600)
+            MINUTIIMP=(POLLTIMEC-(ORAIMP*3600))/60
+            SECIMP= 0               '          POLLTIMEC-(ORAIMP*3600) - (MINUTIIMP*60)
+            hserout ["Time ",DEC2 ORAIMP,":",DEC2 MINUTIIMP,13,10]
+            
+                
+            
+        CASE 10   
+            'hserout ["FIX: ",SAT[0],13]
+
+            'SEROUT2 TXPC,6,[ "1 FORMATOCOORDINATE -$GPRMC",STR DAT\75,13,10 ]
+            'GPSONSMS=1  'SALVO CHE HO ACCESO IL GPS PER INVIARE L'SMS CON LE COORDIANTE
+            'GOSUB LEGGIGPS
+                    
+            IF MOTIVOCOORD<>99 THEN  'INVIO NEL FORMATO PER TR102
+                READ 370,TMP3
+            '    SEROUT2 txpc,6,["-FORMATOCOORDINATE ",#tmp3,13,10]
+            ELSE
+                TMP3=6
+            ENDIF 
+            GOSUB FORMATOCOORDINATE
+
+            'SEROUT2 TXPC,6,[ "STRINGA IN MEMORIA -$GPRMC",STR DAT\75,13,10 ]
+            
+        CASE 11
+            hserout ["NO DATA"]
+    
+        CASE 12
+            read 711,tmp
+            hserout ["Data cell: "]        
+            if tmp=0 then
+                hserout ["off"]        
+            else
+                hserout ["on"]        
+            endif
+
+        CASE 14
+            hserout ["Set SMS"]
+        
+        CASE 16
+            hserout ["GPRS parameters:",13,10,"APN: "]
+            FOR TMP=0 TO 30
+                READ 500+TMP,TMP1
+                IF TMP1<>"#" AND TMP1<>255 THEN
+                    HSEROUT [TMP1]
+                ELSE
+                    TMP=31
+                ENDIF
+            NEXT TMP
+            IF PWDOK=1 THEN
+                hserout [13,10,"Username: "]
+                FOR TMP=0 TO 30
+                    READ 530+TMP,TMP1
+                    IF TMP1<>"#" AND TMP1<>255 THEN
+                        HSEROUT [TMP1]
+                    ELSE
+                        TMP=31
+                    ENDIF
+                NEXT TMP
+                hserout [13,10,"Password: "]
+                FOR TMP=0 TO 30
+                    READ 560+TMP,TMP1
+                    IF TMP1<>"#" AND TMP1<>255 THEN
+                        HSEROUT [TMP1]
+                    ELSE
+                        TMP=31
+                    ENDIF
+                NEXT TMP
+            else
+                hserout [13,10,"To view GPRS parameters, enter the password"]
+            endif
+        
+        CASE 20
+            hserout ["Reset"]
+            
+        CASE 21
+            READ 811,TMP
+            IF TMP=1 THEN
+                hserout ["GPS on"]
+            ELSE
+                hserout ["GPS off"]
+            ENDIF
+
+        CASE 22
+            hserout ["GSM IMEI: "]
+            FOR TMP=0 TO 20
+                READ 730+TMP,TMP1
+                IF TMP1<>"#" AND TMP1<>255 THEN
+                    HSEROUT [TMP1]
+                ELSE
+                    TMP=31
+                ENDIF
+            NEXT TMP
+        CASE 23
+            hserout ["Name: "]
+            FOR TMP=0 TO 20
+                READ 751+TMP,TMP1
+                IF TMP1<>"#" AND TMP1<>255 THEN
+                    HSEROUT [TMP1]
+                ELSE
+                    TMP=31
+                ENDIF
+            NEXT TMP
+'        CASE 24
+'            hserout ["URL parameters:",13]
+'            FOR TMP=0 TO 100
+'                READ 401+TMP,TMP1
+'                IF TMP1<>"#" AND TMP1<>255 THEN
+'                    HSEROUT [TMP1]
+'                ELSE
+'                    TMP=31
+'                ENDIF
+'            NEXT TMP
+        
+        CASE 26
+            READ 1007,TMP
+            IF TMP=1 THEN
+                hserout ["Address on"]
+            ELSE
+                hserout ["Address off"]
+            ENDIF
+        CASE 27
+       
+            
+            tmp1= (GSMSECTOT/60)/60
+            TMP2= (GSMSECTOT-(TMP1*60*60))/60
+            TMP3= (GSMSECTOT-(TMP1*60*60))-(TMP2*60)
+            hserout ["Time  ",dec2 tmp1,":",dec2 TMP2,":",dec2 TMP3,13,10 ]
+            READ 703,tmp
+            POLLTIMEC=0
+            READ 704,POLLTIMECh         'RILEGGO IL TEMPO IMPOSTATO
+            READ 705,POLLTIMECl                
+            ORAIMP=(POLLTIMEC/3600)
+            MINUTIIMP=(POLLTIMEC-(ORAIMP*3600))/60
+            
+            hserout ["Con ",#TMP,32,DEC2 ORAIMP,":",DEC2 MINUTIIMP,":00",13,10] 
+            tmp1= (POLLTIMEC/60)/60
+            TMP2= (POLLTIMEC-(TMP1*60*60))/60
+            TMP3= (POLLTIMEC-(TMP1*60*60))-(TMP2*60)  
+            hserout ["Con   ",dec2 tmp1,":",dec2 TMP2,":",dec2 TMP3,13,10]
+
+
+       CASE 28
+            hserout ["ATTENTION!!! SOS MESSAGE!!!"]
+            
+       CASE 29
+            hserout ["Ver Firmware ",#VER]        
+            
+           ' next POSIZIONEGEO
+        CASE 30             
+            IF BUFF[3]<>0 THEN    'CONTROLLO ANCHE CHE BUFF NON SIA VUOTO            
+                SEROUT2 TXPC,6,["Probable position: ",STR BUFF\100]
+                HSEROUT ["Probable position: ",STR BUFF\100]
+            ENDIF 
+       CASE 33
+            READ 835,TMP
+            hserout ["MIN n. sat ",#tmp]
+       CASE 34
+            READ 800,TMP
+            IF TMP=1 THEN
+                hserout ["Coordinates from GPS"]
+            ELSE
+                hserout ["Coordinates from GSM"]
+            ENDIF
+
+               
+    END SELECT 
+    
+        hserout [26]
+    
+'    TENTATIVI=TENTATIVI+1    
+'    IF TENTATIVI=3 THEN
+'        PAUSE 3000
+'        GOTO EXITINVIOSMS
+'    ENDIF
+     
+        
+    hserin 10000,EXITINVIOSMS,[WAIT("O"),TMP]
+    
+    'hserin 10000,REINVIOSMS,[WAIT("OK")]
+    
+    SEROUT2 TXPC,6,["-SMS INVIATO",13,10 ]
+    TENTATIVI=5
+    'DEBUG "INVIATO",13,10
+    ERROREGPRS=0
+    PAUSE 1000
+   
+    
+EXITINVIOSMS: 
+TENTATIVI=TENTATIVI+1
+IF TENTATIVI<3 THEN REINVIOSMS
+TENTATIVI=0
+    hserout ["ATE1",13]
+    SEROUT2 TXPC,6,[ "ABILITO L'ECHO",13,10 ] 
+    LOW LD2
+
+'SEROUT2 TXPC,6,[ "1 EXITINVIOSMS -$GPRMC",STR DAT\75,13,10 ]
+    
+RETURN
+
+
+SCELTAFORMATO:        'S SMS E Email U URL  3 SMS+Email  4 SMS+URL  5 Email+URL  9 SMS+Email+URL
+    SELECT CASE TMP             
+        CASE "S","s"    'SMS
+            hserout ["SMS"]    
+        CASE "E","e"    'EMAIL
+            hserout ["EMAIL"]              
+        CASE "3"    'SMS & EMAIL
+            hserout ["SMS & EMAIL"] 
+        CASE "M","m"    'rispondi al mittente
+            hserout ["CALLER"]             
+        CASE ELSE
+            hserout ["Not defined"]                                           
+    END SELECT   
+RETURN
+
+MEMONUMERO:
+
+    SEROUT2 TXPC,6,[ "-MEM POS ",#POSIZIONE,13,10]
+    FOR TMP=0 TO LUNGNUM
+        TMP1=((POSIZIONE-1)*20+TMP)
+        WRITE TMP1,NUMERO[TMP]                             
+    NEXT TMP
+    
+    
+'    SEROUT2 TXPC,6,[ "-NUMERO SALVATO "]
+'    FOR TMP=0 TO 20
+'        TMP1=((POSIZIONE-1)*20+TMP)
+'        READ TMP1,TMPW
+'        SEROUT2 TXPC,6,[TMPW]
+'    NEXT TMP
+'    SEROUT2 TXPC,6,[13,10]
+        
+RETURN
+
+CERCANUMERO:
+
+    IF CERCAMITTENTE=1 THEN
+        FOR TMP=0 TO LUNGMITT
+            NUMERO[TMP]=MITTENTE[TMP]
+        NEXT TMP
+        LUNGNUM=LUNGMITT
+        CERCAMITTENTE=0
+    ENDIF
+
+    SEROUT2 TXPC,6,["-Cerca NUMERO "]
+    FOR TMP=0 TO (LUNGNUM+1)
+        SEROUT2 TXPC,6,[numero[tmp]]
+    NEXT TMP
+    SEROUT2 TXPC,6,[13,10]
+
+TROVATO=0
+POSTROVATO=99
+For TMP1=0 TO 100
+	
+	Read TMP1,DATO
+	'DEBUG"DATO ",DATO," POS ",#TMP1,13,10
+   	IF DATO=numero[0] Then
+   	    POSTROVATO=TMP1/20
+        For TMP2=0 TO LUNGNUM
+            TMPW=TMP2+TMP1
+            Read TMPW,DATO
+			'DEBUG "DATO LETTO ",DATO," NUMERO ",NUMERO[TMP2],13,10    
+            IF DATO<>numero[TMP2] Then
+                POSTROVATO=99
+			    GoTo SALTA
+            EndIF    
+        Next TMP2          	
+            SEROUT2 TXPC,6,["TROVATO IN ",#POSTROVATO,13,10]
+    		TROVATO=1
+        Return
+    EndIF  
+
+SALTA:
+Next TMP1
+
+
+RETURN
+
+LEGGIMASTER:
+    SEROUT2 TXPC,6,["-LEGGO MASTER",13,10]
+
+    FOR TMP=0 TO 20 
+        READ TMP,DATO
+        IF DATO<>255 THEN
+            MITTENTE[TMP]=DATO
+        ELSE
+            LUNGMITT=TMP-1
+            TMP=21
+        ENDIF
+    NEXT TMP
+    
+    SEROUT2 TXPC,6,[ "-MASTER: "]
+    FOR TMP=0 TO LUNGMITT
+        SEROUT2 TXPC,6,[ MITTENTE [TMP]]
+    NEXT TMP
+    SEROUT2 TXPC,6,[ 13,10]
+        
+
+RETURN
+
+'LEGGIEMAIL:
+'   ' SEROUT P2,2,["LEGGO MAIL",13,10]
+'    FOR TMP=100 TO 200 
+'        READ TMP,DATO
+'        IF DATO<>"," THEN
+'            MITTENTE[TMP-100]=DATO
+'        ELSE
+'            LUNGMITT=TMP-101
+'            TMP=201
+'        ENDIF
+'    NEXT TMP
+        
+
+'RETURN
+
+
+
+
+STARTTIME:  'SERVE PER RESETTARE LE VARIABILE DEL TIME
+
+    GOSUB TIME
+    PAUSE 1000
+    GOSUB TIME
+    gosub RILEGGIIMP
+RETURN
+
+TIME:
+
+
+    HSEROUT ["AT+CCLK?",13]      'ORA +CCLK: "01/01/01,00:08:34+00"
+    HSERIN 2000,EXITTIME,[WAIT (": "),SKIP 7,WAIT (","),DEC2 ORAGSM,TMP,DEC2 MINUTIGSM,TMP,DEC2 SECONDIGSM]
+    HSERIN 2000,EXITTIME,[WAIT ("OK")]
+
+    GSMSECTOT=((ORAGSM*60)*60)+(MINUTIGSM*60)+SECONDIGSM
+    SEROUT2 txpc,6,[ "GSMSECTOT=",#GSMSECTOT,13,10]    
+EXITTIME:
+RETURN
+
+REVERSEGEO:
+    FOR TMP=0 TO 99
+        BUFF[TMP]=0
+    NEXT TMP
+    PAUSE 500
+    HIGH LD1
+    HIGH LD2
+    SEROUT2 txpc,6,[ "REVERSE",13,10]
+    ERROREGPRS=1
+    GOSUB IMPOSTAGPRS
+    
+    IF ERROREGPRS=0 THEN
+        ERROREGPRS=1
+        GOSUB IMPOSTAREVERSE
+        IF ERROREGPRS=0 THEN
+            ERROREGPRS=1
+            GOSUB CONNETTIGPRS
+            PAUSE 3000
+            IF ERROREGPRS=0 THEN
+                GOSUB INVIOREVERSE
+                REVERSEOK=1
+                HSEROUT ["QUIT",13]
+                PAUSE 1000
+                HSEROUT ["AT",13]
+                PAUSE 3000
+                HSEROUT ["AT",13]
+                PAUSE 1000
+                HSEROUT ["AT+CIPSHUT",13]
+                PAUSE 3000
+            ENDIF
+        ENDIF
+    ENDIF   
+    LOW LD1  
+    LOW LD2
+RETURN
+
+
+IMPOSTAREVERSE:
+'INTCON3.5=0
+
+    POS=0
+    SEROUT2 txpc,6,[ "-IMPOSTAREVERSE",13,10] 
+    
+    HSEROUT ["AT+CIPSTART=",34,"TCP",34,",",34,"MAPS.GOOGLE.COM",34,",",34,"80",34,13]
+    SEROUT2 txpc,6,["AT+CIPSTART=",34,"TCP",34,",",34,"MAPS.GOOGLE.COM",34,",",34,"80",34,13] 
+    
+    HSERIN 30000,EXITIMPOSTAREVERSE,[wait ("CONNECT")]
+    
+    TENTATIVI=5
+    ERROREGPRS=0
+EXITIMPOSTAREVERSE:
+    TENTATIVI=TENTATIVI+1
+    IF TENTATIVI<3 THEN IMPOSTAREVERSE   
+    'SEROUT2 txpc,6,[ "-IMPOSTA REVERSE OK TENTATIVI ",#TENTATIVI,13,10]    
+    TENTATIVI=0
+'INTCON3.5=1
+RETURN
+
+
+
+INVIOREVERSE:
+    FOR TMP=0 TO 200
+        BUFF[TMP]="#"
+    NEXT TMP
+    SEROUT2 TXPC,6,[ "-INVIOREVERSE",13,10 ]
+'    SEROUT2 TXPC,6,["GET /maps/geo?q=",DEC2 DDLAT,".",DEC7 LATddddd,",",DEC3 DDLON,".",DEC7 LONddddd,"&output=csv&oe=utf8&sensor=true&key=ABQIAAAAIJFMStkxCl4SCny-4ljyrBSGlurGTuzSvLP2hdih89-BLytuYBSkNj5KnlIioEpEepQBOJRQPjqyPw HTTP/1.1",13,10]
+'    HSEROUT ["GET /maps/geo?q=",DEC2 DDLAT,".",DEC7 LATddddd,",",DEC3 DDLON,".",DEC7 LONddddd,"&output=csv&oe=utf8&sensor=true&key=ABQIAAAAIJFMStkxCl4SCny-4ljyrBSGlurGTuzSvLP2hdih89-BLytuYBSkNj5KnlIioEpEepQBOJRQPjqyPw HTTP/1.1",13]
+    SEROUT2 TXPC,6, ["GET /maps/geo?q="]
+    HSEROUT ["GET /maps/geo?q="]
+    if SIGNLAT="-" THEN
+        SEROUT2 TXPC,6, [SIGNLAT]
+        HSEROUT [SIGNLAT]
+    ENDIF
+    'SEROUT2 TXPC,6, [DEC DDLAT,".",DEC LATddddd,","]
+    'HSEROUT         [DEC DDLAT, ".", DEC LATddddd, ","]
+    
+    SEROUT2 TXPC,6, [DEC DDLAT, "."]
+    hserout [DEC DDLAT, "."]
+    IF LATddddd<10000 THEN
+        SEROUT2 TXPC,6, ["00"]
+        hserout ["00"]
+    ELSE
+        IF LATddddd<100000 THEN
+            SEROUT2 TXPC,6, ["0"]
+            hserout ["0"]
+        ENDIF                                    
+    ENDIF                                  
+    SEROUT2 TXPC,6, [DEC LATddddd, ","]
+    hserout [DEC LATddddd, ","]
+        
+    
+    
+    IF SIGNLON="-" THEN
+        SEROUT2 TXPC,6, [SIGNLON]
+        HSEROUT [SIGNLON]
+    ENDIF
+    'SEROUT2 TXPC,6, [DEC DDLON, ".", DEC LONddddd]
+    'HSEROUT         [DEC DDLON, ".", DEC LONddddd]
+
+    SEROUT2 TXPC,6, [DEC DDLON, "."]
+    hserout [DEC DDLON, "."]
+    IF LONddddd<10000 THEN
+        SEROUT2 TXPC,6, ["00"]
+        hserout ["00"]
+    ELSE
+        IF LONddddd<100000 THEN
+            SEROUT2 TXPC,6, ["0"]
+            hserout ["0"]
+        ENDIF                                    
+    ENDIF                                  
+    SEROUT2 TXPC,6, [DEC LONddddd]
+    hserout [DEC LONddddd]
+    
+        
+        
+        
+    'SEROUT2 TXPC,6, ["&output=csv&oe=utf8&sensor=true&key=ABQIAAAAIJFMStkxCl4SCny-4ljyrBSGlurGTuzSvLP2hdih89-BLytuYBSkNj5KnlIioEpEepQBOJRQPjqyPw HTTP/1.1",13,10]        
+    HSEROUT ["&output=csv&oe=utf8&sensor=true&key=ABQIAAAAIJFMStkxCl4SCny-4ljyrBSGlurGTuzSvLP2hdih89-BLytuYBSkNj5KnlIioEpEepQBOJRQPjqyPw HTTP/1.1",13,10]        
+    PAUSE 500
+    'SEROUT2 TXPC,6,["HOST: MAPS.GOOGLE.COM",13,10]
+    HSEROUT ["HOST: MAPS.GOOGLE.COM",13,10]               
+    SEROUT2 TXPC,6,["Connection: close"]
+    HSEROUT ["Connection: close",13,10,13,10]
+    SEROUT2 TXPC,6,[13,10,13,10]
+    HSERIN 20000,INVIOREVERSEEXIT,[wait (44,34),STR BUFF\100\34] 'ASPETTO LA ,"    
+    PAUSE 2000
+    HSEROUT [13,10,13,10]
+    SEROUT2 TXPC,6,[13,10,13,10]
+    SEROUT2 TXPC,6,["TI TROVI IN ",STR BUFF]
+    FOR TMP=0 TO 200
+        SEROUT2 TXPC,6,[#tmp,32,buff[TMP],32,HEX buff[TMP],10,13]
+        IF BUFF[TMP]="#" or BUFF[TMP]=0 THEN              
+            LUNGBUFF=TMP
+            SEROUT2 TXPC,6,["LUNGBUFF ",#LUNGBUFF]
+            TMP=222
+        ENDIF
+    NEXT TMP
+    'HSEROUT ["QUIT",13,10]
+    'SEROUT2 TXPC,6,["QUIT",13,10]
+INVIOREVERSEEXIT:
+RETURN
+
+ 
+CELLTOCOO:
+    FOR TMP=0 TO 99
+        BUFF[TMP]=0
+    NEXT TMP
+    HIGH LD1
+    HIGH LD2    
+    SEROUT2 txpc,6,[ "CELL TO COO",13,10]
+    ERROREGPRS=1
+    GOSUB IMPOSTAGPRS
+    
+    IF ERROREGPRS=0 THEN
+        ERROREGPRS=1
+        GOSUB IMPOSTACELLTOCOO
+        IF ERROREGPRS=0 THEN
+            ERROREGPRS=1
+            GOSUB CONNETTIGPRS
+            PAUSE 3000
+            IF ERROREGPRS=0 THEN
+                GOSUB INVIOCELLTOCOO
+
+                HSEROUT ["QUIT",13]
+                PAUSE 1000
+                HSEROUT ["AT",13]
+                PAUSE 3000
+                HSEROUT ["AT",13]
+                PAUSE 1000
+                HSEROUT ["AT+CIPSHUT",13]
+                PAUSE 3000
+            ENDIF
+        ENDIF
+    ENDIF
+    LOW LD1
+    LOW LD2
+RETURN
+
+
+IMPOSTACELLTOCOO:
+'INTCON3.5=0
+
+    POS=0
+    SEROUT2 txpc,6,[ "-IMPOSTACELLTOCOO",13,10] 
+    HSEROUT ["AT+CIPSTART=",34,"TCP",34,",",34,"www.google.com",34,",",34,"80",34,13]
+    SEROUT2 txpc,6,["AT+CIPSTART=",34,"TCP",34,",",34,"www.google.com",34,",",34,"80",34,13] 
+    
+    HSERIN 30000,EXITIMPOSTACELLTOCOO,[wait ("CONNECT")]
+    
+    
+'    HSERIN 2000,EXITIMPOSTACELLTOCOO,[wait ("O")]
+'    PAUSE 100
+'    HSEROUT ["AT$PADSRC=80",13]    
+'    HSERIN 2000,EXITIMPOSTACELLTOCOO,[wait ("O")]    
+'    PAUSE 100
+'    HSEROUT ["AT$HOSTIF=2",13]
+'    HSERIN 2000,EXITIMPOSTACELLTOCOO,[wait ("O")]
+'    PAUSE 100
+'    HSEROUT ["AT&W",13]
+'    HSERIN 2000,EXITIMPOSTACELLTOCOO,[wait ("O")]
+'    PAUSE 100
+    TENTATIVI=5
+    ERROREGPRS=0
+EXITIMPOSTACELLTOCOO:
+    TENTATIVI=TENTATIVI+1
+    IF TENTATIVI<3 THEN IMPOSTACELLTOCOO   
+    'SEROUT2 txpc,6,[ "-IMPOSTA REVERSE OK TENTATIVI ",#TENTATIVI,13,10]    
+    TENTATIVI=0
+'INTCON3.5=1
+RETURN
+
+
+
+INVIOCELLTOCOO:
+    
+    'HSEROUT ["AT+CIPSEND",13]
+    'PAUSE 2000
+    
+    SEROUT2 TXPC,6,[ "-INVIOCELLTOCOO",13,10 ]
+'    SEROUT2 TXPC,6,["GET /maps/geo?q=",DEC2 DDLAT,".",DEC7 LATddddd,",",DEC3 DDLON,".",DEC7 LONddddd,"&output=csv&oe=utf8&sensor=true&key=ABQIAAAAIJFMStkxCl4SCny-4ljyrBSGlurGTuzSvLP2hdih89-BLytuYBSkNj5KnlIioEpEepQBOJRQPjqyPw HTTP/1.1",13,10]
+'    HSEROUT ["GET /maps/geo?q=",DEC2 DDLAT,".",DEC7 LATddddd,",",DEC3 DDLON,".",DEC7 LONddddd,"&output=csv&oe=utf8&sensor=true&key=ABQIAAAAIJFMStkxCl4SCny-4ljyrBSGlurGTuzSvLP2hdih89-BLytuYBSkNj5KnlIioEpEepQBOJRQPjqyPw HTTP/1.1",13]
+    SEROUT2 TXPC,6, ["POST /glm/mmap HTTP/1.1",13,10]
+    HSEROUT ["POST /glm/mmap HTTP/1.1",13,10]
+    SEROUT2 TXPC,6,["HOST: google.com",13,10]
+    HSEROUT ["HOST: google.com",13,10]  
+    
+    SEROUT2 TXPC,6, ["Content-Type: application/binary",13,10]
+    HSEROUT ["Content-Type: application/binary",13,10]
+    
+    SEROUT2 TXPC,6, ["Content-Length: 82",13,10]     
+    HSEROUT ["Content-Length: 82",13,10]   
+    
+    SEROUT2 TXPC,6,["Connection: close",13,10]
+    HSEROUT ["Connection: close",13,10,13,10]          
+	
+    '21, 0, len(country), country, len(device), device, len('3.0.1.6'), "3.0.1.6", len('Web'), "Web", 27, 0, 0, 3, 0, cid, lac, mnc, mcc, 0, 0 
+    FOR TMP=0 TO 100
+        STRING[TMP]=0
+    NEXT TMP
+    
+'    # h   = short           21                  2 byte      2
+'    # q   = long long       0                   8 byte      8   10    
+'    # h   = short           len(country)        2 byte      2   12
+'    # 2s  = 2 stringhe      "it"                1 byte      2   14
+'    # h   = short           len(device)         2 byte      2   16  
+'    # 13s = 13 stringhe     "Nokia N95 8Gb"     1 byte      13  29 
+'    # h   = short           len('3.0.1.6')      2 byte      2   31
+'    # 7s  = 7 stringhe      "3.0.1.6"           1 byte      7   38
+'    # h   = short           len('Web')          2 byte      2   40
+'    # 3s  = 3 stringhe      "Web"               1 byte      3   43
+'    # B   = unsigned char   27                  1 byte      1   44
+'    # 3i  = 3 int           0 0 3               4 byte      12  56
+'    # h   = short           0                   2 byte      2   58
+'    # 6i  = 6 int           cid lac mnc mcc 0 0 4 byte      24  82
+
+    '    # h   = short           21                  2 byte      2
+    STRING[0] =0 :STRING[1] =21   
+    '    # q   = long long       0                   8 byte      8   10  
+    'STRING[2] =0 :STRING[9] =0
+    '    # h   = short           len(country)        2 byte      2   12
+    STRING[10]=0 :STRING[11]=2 
+    '    # 2s  = 2 stringhe      "it"                1 byte      2   14
+    STRING[12]="i":STRING[13]="t"
+    '    # h   = short           len(device)         2 byte      2   16 
+    STRING[14]=0 :STRING[15]=13:
+    '    # 13s = 13 stringhe     "Nokia N95 8Gb"     1 byte      13  29 
+    STRING[16]="B":STRING[17]="o":STRING[18]="r":STRING[19]="i":STRING[20]="s":STRING[21]=" ":STRING[22]="L":STRING[23]="a":STRING[24]="n":STRING[25]="d":STRING[26]="o":STRING[27]="n":STRING[28]="i"
+    '    # h   = short           len('3.0.1.6')      2 byte      2   31
+    STRING[29]=0 :STRING[30]=7 
+    '    # 7s  = 7 stringhe      "3.0.1.6"           1 byte      7   38
+    STRING[31]="3":STRING[32]=".":STRING[33]="0":STRING[34]=".":STRING[35]="1":STRING[36]=".":STRING[37]="6"
+    '    # h   = short           len('Web')          2 byte      2   40
+    STRING[38]=0 :STRING[39]=3 
+    '    # 3s  = 3 stringhe      "Web"               1 byte      3   43
+    STRING[40]="W":STRING[41]="e":STRING[42]="b"
+    '    # B   = unsigned char   27                  1 byte      1   44
+    STRING[43]=27
+    '    # 3i  = 3 int           0 0 3               4 byte      12  56
+    STRING[44]=0 :STRING[45]=0 :STRING[46]=0 :STRING[47]=0 :    STRING[48]=0 :STRING[49]=0 :STRING[50]=0 :STRING[51]=0 :   STRING[52]=0 :STRING[53]=0 :STRING[54]=0 :STRING[55]=3
+    '    # h   = short           0                   2 byte      2   58
+    STRING[56]=0 :STRING[57]=0
+    '    # 6i  = 6 int           cid lac mnc mcc 0 0 4 byte      24  82
+    STRING[58]=CID3
+    STRING[59]=CID2
+    STRING[60]=cid1
+    STRING[61]=cid0
+    
+    STRING[62]=LAC3
+    STRING[63]=LAC2
+    STRING[64]=LAC1
+    STRING[65]=LAC0
+    
+    STRING[66]=MNC3
+    STRING[67]=MNC2
+    STRING[68]=MNC1
+    STRING[69]=MNC0
+    
+    STRING[70]=MCC3
+    STRING[71]=MCC2
+    STRING[72]=MCC1
+    STRING[73]=MCC0
+    
+    STRING[74]=0 :STRING[75]=0 :STRING[76]=0 :STRING[77]=0 :    STRING[78]=0 :STRING[79]=0 :STRING[80]=0 :STRING[81]=0
+    
+'    STRING[0] =21    
+'    STRING[10]=2 :STRING[11]="i":STRING[12]="t"
+'    STRING[14]=13:STRING[15]="N":STRING[16]="o":STRING[17]="k":STRING[18]="i":STRING[19]="a":STRING[20]=" ":STRING[21]="N":STRING[22]="9":STRING[23]="5":STRING[24]=" ":STRING[25]="8":STRING[26]="G":STRING[27]="b"
+'    STRING[29]=7 :STRING[30]="3":STRING[31]=".":STRING[32]="0":STRING[33]=".":STRING[34]="1":STRING[35]=".":STRING[36]="6"
+'    STRING[38]=3 :STRING[39]="W":STRING[40]="e":STRING[41]="b":STRING[42]=27
+'    STRING[54]=3
+'    STRING[57]=CID3
+'    STRING[58]=CID2
+'    STRING[59]=cid1
+'    STRING[60]=cid0
+'    STRING[61]=LAC3
+'    STRING[62]=LAC2
+'    STRING[63]=LAC1
+'    STRING[64]=LAC0
+'    STRING[65]=MNC3
+'    STRING[66]=MNC2
+'    STRING[67]=MNC1
+'    STRING[68]=MNC0
+'    STRING[69]=MCC3
+'    STRING[70]=MCC2
+'    STRING[71]=MCC1
+'    STRING[72]=MCC0
+
+
+    
+    '72 +8 = 80 caratteri
+    
+    for tmp=0 TO 81
+         SEROUT2 TXPC,6, [#TMP,32,STRING[TMP],32,#STRING[TMP],32,HEX STRING[TMP],13,10]
+         HSEROUT [STRING[TMP]]
+    NEXT TMP
+    
+    'SEROUT2 TXPC,6, [".","6",0,3,"W","e","b",27,0,0,0,0,0,0,0,0,0,0,0,3,0,0,cid,lac,mnc,mcc,0,0,0,0,0,0,0,0]
+    'HSEROUT [21,0,0,0,0,0,0,0,0,0,2,"i","t",0,5,"Nokia N95 8Gb",0,7,"3",".","0",".","1",".","6",0,3,"W","e","b",27,0,0,0,0,0,0,0,0,0,0,0,3,0,0,cid,lac,mnc,mcc,0,0,0,0,0,0,0,0]
+    
+    
+  
+    'HSERIN 20000,INVIOCELLTOCOOEXIT,[wait (44,34),STR BUFF\100\34] 'ASPETTO LA ,"    wait (13,10,13,10),
+'    #   0      0  0   a
+'    #   1      21  15   a
+'    #   2       27  1B   b
+'    #   3   0   0        errorCode
+'    #   4   0   0        errorCode
+'    #   5   0   0        errorCode
+'    #   6   0   0        errorCode
+'    #   7      2   2   latitude
+'    #   8   ¸   184 B8  latitude
+'    #   9   l   110 6E  latitude
+'    #   10  Ñ   96  60  latitude
+'    #   11  0   0       longitude
+'    #   12  †   134 86  longitude
+'    #   13  w   117 75  longitude
+'    #   14  Î   58  3A  longitude
+'    #   15  0   0       raggio
+'    #   16  0   0       raggio
+'    #   17     4   4   raggio
+'    #   18  ‡   135 87  raggio
+'    #   19  0   0       d
+'    #   20  0   0       d
+'    #   21  0   0       d
+'    #   22  K   75  4B  d
+'    #   23  0   0       e
+'    #   24  0   0       e
+'    HSERIN 20000,INVIOCELLTOCOOEXIT,[skip 230,wait (21),TMP,TMP,TMP,TMP,TMP,dec4 LATddddd]',dec4 LONddddd, dec4 RAGGIO] 'ASPETTO LA ,"    
+    HSERIN 20000,INVIOCELLTOCOOEXIT,[skip 230,wait (21),STR BUFF\22] 'ASPETTO LA ,"        
+'0       27  1B
+'1       0   0
+'2       0   0
+'3       0   0
+'4       0   0
+'5      2   2
+'6   ¸   184 B8
+'7   l   108 6C
+'8   Ñ   209 D1
+'9       0   0    
+'10  †   134 86
+'11  w   119 77
+'12  Î   206 CE
+'13      0   0    
+'14      0   0                                     
+'15     4   4   
+'16  ‡   135 87
+'17      0   0    
+'18      0   0    
+'19      0   0    
+'20  K   75  4B 
+'21      0   0    
+'22      0   0
+
+   ' HSEROUT [13,10,13,10]
+    'SEROUT2 TXPC,6,[13,10,13,10]
+'    SEROUT2 TXPC,6,["RISP  ",STR BUFF]
+
+'LATITUDINE        4271423639
+
+'LAT: 233.004294423639
+' -23543657 
+'LONGITUDINE       4248272652
+
+'LON: 65490.004294272652
+
+    
+    LATddddd.byte3=buff[5]
+    LATddddd.byte2=buff[6]
+    LATddddd.byte1=buff[7]
+    LATddddd.byte0=buff[8]
+    
+    LONddddd.byte3=buff[9]
+    LONddddd.byte2=buff[10]
+    LONddddd.byte1=buff[11]
+    LONddddd.byte0=buff[12]
+        
+    RAGGIO.byte3=buff[13]
+    RAGGIO.byte2=buff[14]
+    RAGGIO.byte1=buff[15]
+    RAGGIO.byte0=buff[16]
+    
+    for tmp=0 TO 22
+         SEROUT2 TXPC,6, [#TMP,32,BUFF[TMP],32,#BUFF[TMP],32,HEX BUFF[TMP],13,10]
+    NEXT TMP
+    
+    
+    SIGNLAT="+"
+    IF (LATddddd.31=1) THEN
+        LATddddd=4294967295-LATddddd
+        SIGNLAT="-"
+    ENDIF
+     SEROUT2 TXPC,6,["LATITUDINE        ",DEC LATddddd,10,13]
+     DDLAT=LATddddd/1000000
+     LATddddd=LATddddd//1000000
+     'SEROUT2 TXPC,6,["LAT: ",DEC DDLAT,".",DEC LATddddd,13]
+        SEROUT2 TXPC,6, ["LAT: ",SIGNLAT,DEC DDLAT,"."]
+        IF LATddddd<10000 THEN
+            SEROUT2 TXPC,6, ["00"]
+        ELSE
+            IF LATddddd<100000 THEN
+                SEROUT2 TXPC,6, ["0"]
+            ENDIF                                    
+        ENDIF                                  
+        SEROUT2 TXPC,6, [DEC LATddddd,13]
+               
+     SIGNLON="+"
+     IF (LONddddd.31=1) THEN
+        LONddddd=4294967295-LONddddd
+        SIGNLON="-"
+     ENDIF
+     SEROUT2 TXPC,6,["LONGITUDINE       ",DEC LONddddd,10,13]
+     DDLON=LONddddd/1000000
+     LONddddd=LONddddd//1000000 
+     'SEROUT2 TXPC,6,["LON: ",DEC DDLON,".",DEC LONddddd,13]
+        SEROUT2 TXPC,6, ["LON: ",SIGNLON,DEC DDLON,"."]
+        IF LONddddd<10000 THEN
+            SEROUT2 TXPC,6, ["00"]
+        ELSE
+            IF LONddddd<100000 THEN
+                SEROUT2 TXPC,6, ["0"]
+            ENDIF                                    
+        ENDIF                                  
+        SEROUT2 TXPC,6, [DEC LONddddd,13]
+     
+     
+     
+     SEROUT2 TXPC,6,["APPROSSIMAZIONE   ",DEC RAGGIO," m",10,13]
+     SEROUT2 TXPC,6,["APPROSSIMAZIONE   ",#RAGGIO," m",10,13]
+     IF RAGGIO<20000 THEN
+        CELLTOCOOOK=1
+     ENDIF
+INVIOCELLTOCOOEXIT:
+RETURN
+
+
+'SPEDISCIMAIL:
+'    HIGH LD2
+'    SEROUT2 txpc,6,[ "SPEDISCI MAIL",13,10]
+'        HSEROUT ["AT+CREG?",13]                
+'        HSERIN 2000,EXITSPEDISCIMAIL,[WAIT ("+CREG: "),TMP,TMP1,TMP1]
+'        PAUSE 100
+'        IF TMP<>"0" OR (TMP1<>"1" AND TMP1<>"5") THEN  '5 SE è IN ROAMING
+'            SEROUT2 TXPC,6,["-NON REGISTRATO ",#NONREGISTRATO,13,10]
+'            NONREGISTRATO=NONREGISTRATO+1
+'            IF NONREGISTRATO=10 THEN
+'                NONREGISTRATO=0
+'            ENDIF 
+'        else
+'            SEROUT2 txpc,6,[ "-REGISTRATO",13,10]
+'            TMPW=%00000001 
+'            TMP2=0    
+'            for POSIZIONE=1 to 8
+'                    for tmp=0 to 50
+'                        email[tmp]=0
+'                    next tmp
+'                    gosub LEGGIEMAIL
+'                    if LUNGEMAIL>5 then
+'                        SEROUT2 TXPC,6,["-EMAIL:<",STR EMAIL\LUNGEMAIL,">",13,10]
+'                        TMP2=1'SE TROVO ALMENO UNA MAIL SPEDISCO ALTRIMENTI ESCO
+'                    endif
+'                TMPW=TMPW<<1
+'            NEXT POSIZIONE
+'            SEROUT2 txpc,6,[ "TROVATE MAIL ",#TMP2,13,10]
+'            IF TMP2=0 THEN  
+'                MAILSOSPESO=0
+'                GOTO EXITSPEDISCIMAIL
+'            ENDIF
+'            NONREGISTRATO=0  
+            
+            
+            
+'                ERROREGPRS=1
+'                GOSUB IMPOSTAGPRS
+                
+'                IF ERROREGPRS=0 THEN
+'                    ERROREGPRS=1
+'                    GOSUB IMPOSTAEMAIL
+'                    IF ERROREGPRS=0 THEN
+'                        ERROREGPRS=1
+'                        GOSUB CONNETTIGPRS
+'                        PAUSE 3000
+'                        IF ERROREGPRS=0 THEN
+'                            GOSUB INVIOEMAIL
+'                            HSEROUT ["QUIT",13]
+'                            PAUSE 1000
+'                            HSEROUT ["AT",13]
+'                            PAUSE 3000
+'                            HSEROUT ["AT",13]
+'                            PAUSE 1000
+'                        ENDIF
+'                    ENDIF
+'                ENDIF
+'            GOSUB RESETSENSORE
+'        ENDIF
+'EXITSPEDISCIMAIL:        
+'LOW LD2 
+
+    
+'RETURN
+
+IMPOSTAGPRS:
+'INTCON3.5=0
+    
+    HSEROUT ["AT+CIPMODE=1",13]
+    PAUSE 3000   
+    
+    HSEROUT ["AT+CGATT?",13]  
+    HSERIN 5000,EXITIMPOSTAGPRS,[wait ("+CGATT: "),TMP]
+    PAUSE 500
+    IF TMP="0" THEN
+        HSEROUT ["AT+CGATT=1",13]  
+        HSERIN 5000,EXITIMPOSTAGPRS,[wait ("OK")]  
+    ENDIF
+    PAUSE 500
+    
+    
+    HSEROUT ["AT+CSTT=",34]
+    'SEROUT2 TXPC,6,["AT+CGDCONT=1,",34,"IP",34,",",34]
+    FOR TMP=0 TO 30     'APN
+            READ 500+TMP,TMP1              
+            IF TMP1<>"#" AND TMP1<>255 THEN
+                HSEROUT [TMP1]
+                'SEROUT2 TXPC,6,[dec tmp1]
+            ELSE
+                TMP=31
+            ENDIF
+    NEXT TMP
+    HSEROUT [34,",",34]   
+    FOR TMP=0 TO 30
+        READ 530+TMP,TMP1
+        IF TMP1<>"#" AND TMP1<>255 THEN
+            HSEROUT [TMP1]
+            'SEROUT2 TXPC,6,[dec tmp1 ]
+        ELSE
+            TMP=31
+        ENDIF
+    NEXT TMP
+    hserout [34,",",34] 
+    'SEROUT2 TXPC,6,[","]
+    FOR TMP=0 TO 30
+        READ 560+TMP,TMP1
+        IF TMP1<>"#" AND TMP1<>255 THEN
+            'HSEROUT [TMP1]
+            SEROUT2 TXPC,6,[dec tmp1]
+        ELSE
+            TMP=31
+        ENDIF
+    NEXT TMP
+    'SEROUT2 TXPC,6,[34,",1",13]
+    HSEROUT [34,13]
+    'HSERIN 2000,EXITIMPOSTAGPRS,[wait ("OK")]
+    PAUSE 3000
+    
+    
+    
+    
+    HSEROUT ["AT+CIICR",13]
+    hSERIN 30000,EXITIMPOSTAGPRS,[wait ("OK")]
+    
+    PAUSE 1000
+ 
+    HSEROUT ["AT+CIFSR",13]
+    PAUSE 3000   
+    
+
+
+    
+'    HSEROUT ["AT&W",13]
+'    HSERIN 2000,EXITIMPOSTAGPRS,[wait ("O")] 
+'    PAUSE 500
+    TENTATIVI=5
+    ERROREGPRS=0
+EXITIMPOSTAGPRS:
+    SEROUT2 txpc,6,[ "EXITIMPOSTAGPRS TENTATIVI ",#TENTATIVI,13,10] 
+    TENTATIVI=TENTATIVI+1
+    IF TENTATIVI<3 THEN 
+        HSEROUT ["AT",13]
+        PAUSE 1000
+        HSEROUT ["AT+CIPSHUT",13]
+        PAUSE 3000
+        goto IMPOSTAGPRS  
+    endif
+    SEROUT2 txpc,6,[ "-IMPOSTA GPRS OK TENTATIVI ",#TENTATIVI,13,10] 
+    TENTATIVI=0
+'INTCON3.5=1
+RETURN
+
+
+
+
+
+CONNETTIGPRS:
+
+    SEROUT2 txpc,6,[ "-CONNETTIGPRS ",13,10] 
+'INTCON3.5=0
+    'HSEROUT ["AT+CGATT=1",13]
+    'PAUSE 2000 
+    'HSEROUT ["AT+CGACT=1,1",13]
+    'PAUSE 3000 
+'    HSEROUT ["ATD*99***1#",13]
+'    'PAUSE 5000 
+'    HSERIN 30000,EXITCONNETTIGPRS,[wait ("CONN")]
+'    high ld2
+'    PAUSE 2000
+'    low ld2
+    TENTATIVI=5
+    ERROREGPRS=0
+EXITCONNETTIGPRS:
+
+SEROUT2 TXPC,6,[ "-EXITCONNETTIGPRS ",#TENTATIVI,13,10 ]
+    TENTATIVI=TENTATIVI+1
+    IF TENTATIVI<2 THEN 
+        HSEROUT ["QUIT",13]
+        PAUSE 1000
+        HSEROUT ["AT",13]
+        PAUSE 3000
+        HSEROUT ["AT",13]
+        PAUSE 1000
+        HSEROUT ["AT+CIPSHUT",13]
+        PAUSE 3000
+        GOTO CONNETTIGPRS   
+    ENDIF    
+    IF TENTATIVI<>6 THEN
+        ERROREGPRS=1
+        SEROUT2 TXPC,6,[ "ERRORE CONNETTIGPRS ",#TENTATIVI,13,10 ]
+    ENDIF    
+    TENTATIVI=0
+RETURN
+
+
+'DORMI:
+''INTCON3.5=0
+'    SEROUT2 TXPC,6,[ "-DORMI",13,10 ]
+''    READ 711,TMP
+''    IF TMP=0 THEN                    
+''        GOSUB GPSOFF         'SPENGO GPS 
+''    ELSE 
+''        GOSUB GPSON          'ACCENDO GPS 
+''    ENDIF 
+'    HSEROUT ["AT+CFUN=0",13]    
+'    PAUSE 500
+'    LOWPOWER=1
+''INTCON3.5=1
+
+'RETURN
+
+'SVEGLIA:
+''INTCON3.5=0
+'    IF LOWPOWER=1 THEN
+'        SEROUT2 TXPC,6,[ "-SVEGLIA",13,10 ]
+'        HSEROUT ["AT",13]
+'        PAUSE 500
+'        HSEROUT ["AT",13]
+'        PAUSE 500
+'        HSEROUT ["AT",13] 
+'        HSERIN 2000,EXITSVEGLIA,[wait ("O")]
+'        PAUSE 500    
+'        HSEROUT ["AT+CFUN=1",13]    
+'        PAUSE 500
+'        LOWPOWER=0
+'    ENDIF
+''INTCON3.5=1
+'RETURN
+
+EXITSVEGLIA:
+        RITENTA=0
+        GOSUB ON_OFF
+        GOSUB SETUP
+
+'    LOWPOWER=0
+'INTCON3.5=1
+RETURN
+
+
+
+SETUP:
+
+high ld2
+SEROUT2 TXPC,6,[ "SETUP",13,10 ]
+
+
+
+HSEROUT ["AT+IPR=115200",13]
+HSERIN 5000,ERRORE,[WAIT ("OK")]
+PAUSE 1000
+HSEROUT ["AT+CMEE=2",13]                'AT+CMEE=0     Mobile Equipment Error Code
+HSERIN 2000,ERRORE,[WAIT ("OK")]
+PAUSE 1000
+
+HSEROUT ["AT+CGSN",13]      'richiedi imei
+HSERIN 2000,SETUP,[SKIP 5,WAIT (10),STR BUFF\20\13]
+SEROUT2 TXPC,6,[ "IMEI ",STR BUFF,13,10 ]
+FOR TMP=0 TO 20
+    if BUFF[tmp]=0 then
+        WRITE 730+TMP,"#"   'FINE STRINGA
+        tmp=21
+    else
+        WRITE 730+TMP,BUFF[TMP]
+    ENDIF
+NEXT TMP
+PAUSE 1000
+
+
+'HSEROUT ["AT+CMGF?",13]                'Set message format  Text mode
+'HSERIN 2000,ERRORE,[WAIT ("OK")]
+'PAUSE 1000
+'HSEROUT ["AT+QSIMDET?",13]                'Set message format  Text mode
+'HSERIN 2000,ERRORE,[WAIT ("OK")]
+'PAUSE 1000
+'HSEROUT ["AT+QSIMDET=0",13]                'Set message format  Text mode
+'HSERIN 2000,ERRORE,[WAIT ("OK")]
+'PAUSE 20000
+HSEROUT ["AT+CMGF=1",13]                'Set message format  Text mode
+HSERIN 2000,ERRORE,[WAIT ("OK")]
+PAUSE 1000
+
+HSEROUT ["AT+CLIP=1",13]                'Request calling line identification
+HSERIN 2000,ERRORE,[WAIT ("OK")]
+PAUSE 1000
+HSEROUT ["AT+CFUN?",13]                'Request calling line identification
+HSERIN 2000,ERRORE,[WAIT ("OK")]
+PAUSE 1000
+    HSEROUT ["AT+CRC=1",13] 
+'    HSERIN 2000,SETUP,[wait ("O")]
+    PAUSE 1000
+    
+    HSEROUT ["AT+COPS=0,2",13]
+    PAUSE 1000
+    
+    HSEROUT ["AT+CREG=2",13]    
+    PAUSE 1000
+    
+'HSEROUT ["AT#CAP=0",13]                'Request calling line identification
+'HSERIN 2000,ERRORE,[WAIT ("OK")]
+'PAUSE 1000
+'HSEROUT ["AT#CAP?",13]                'Request calling line identification
+'HSERIN 2000,ERRORE,[WAIT ("OK")]
+'PAUSE 1000
+'HSEROUT ["AT+CLVL?",13]                'Request calling line identification
+'HSERIN 2000,ERRORE,[WAIT ("OK")]
+'PAUSE 1000
+
+HSEROUT ["AT+CSCLK=2",13]                'Request calling line identification
+HSERIN 2000,ERRORE,[WAIT ("OK")]
+PAUSE 1000
+
+
+HSEROUT ["AT&V",13]                'Request calling line identification
+HSERIN 2000,ERRORE,[WAIT ("OK")]
+PAUSE 1000
+
+'HSEROUT ["AT&D",13]                'Request calling line identification
+'HSERIN 2000,ERRORE,[WAIT ("OK")]
+'PAUSE 1000
+'HSEROUT ["AT&K",13]                'Request calling line identification
+'HSERIN 2000,ERRORE,[WAIT ("OK")]
+'PAUSE 1000
+'HSEROUT ["AT&W",13]                'Request calling line identification
+'HSERIN 2000,ERRORE,[WAIT ("OK")]
+'PAUSE 1000
+
+low ld2
+
+RETURN
+
+ON_OFF: 
+SEROUT2 TXPC,6,[ "ON/OFF",13,10 ]
+SEROUT2 TXPC,6,[ "STATO ",#STATO,13,10 ]
+IF STATO=0 THEN
+
+    SEROUT2 TXPC,6,[ "H POWERGSM",13,10 ]
+    HIGH POWERGSM      'accendi il modulo
+    PAUSE 2100
+    SEROUT2 TXPC,6,[ "L POWERGSM",13,10 ]
+    LOW POWERGSM
+    PAUSE 2000
+ENDIF
+    
+'    for TMP=0 TO 30
+'        PAUSE 100    
+'        SEROUT2 TXPC,84,[ "STATO ",#STATO,13,10 ]
+'        IF STATO=0 THEN
+'            TMP=31
+'        ENDIF
+'    NEXT TMP
+    
+
+    
+'    INPUT VEXTGSM    
+'    SEROUT2 TXPC,84,[ "VEXTGSM ",#VEXTGSM,13,10 ]  
+'    IF VEXTGSM=1 THEN             
+        FOR TMP=0 TO 10
+            PAUSE 500
+            TOGGLE LD1
+        NEXT TMP
+SEROUT2 TXPC,6,[ "STATO ",#STATO,13,10 ]        
+    IF STATO=1 THEN 
+        SEROUT2 TXPC,6,[ "STATO ",#STATO,13,10 ] 
+    ENDIF
+        
+        
+        LOW LD1
+        FOR TMP=0 TO 2
+            HSEROUT ["A"]
+            PAUSE 100
+            HSEROUT ["T"]
+            PAUSE 100
+            HSEROUT [13]
+            PAUSE 100
+        NEXT TMP
+        'HSERIN 2000,ERRORE,[WAIT ("OK")]
+        PAUSE 1000
+'    ELSE
+'        SEROUT2 TXPC,84,[ "SCARICO I CONDENSATORI ",13,10 ]
+'        LOW VEXTGSM    'SCARICO I CONDENSATORI
+'        PAUSE 2000
+'    ENDIF
+
+
+RETURN 
+
+GPSON:
+    SEROUT2 TXPC,6,["GPSON",13,10 ] 
+    HSEROUT ["AT+CGPSPWR=1",13]                
+    HSERIN 2000,ERRORE,[WAIT ("OK")]
+    PAUSE 1000
+    IF RSTCOLD=0 THEN
+        HSEROUT ["AT+CGPSRST=0",13]     'IL PRIMO RESET LO FACCIO A FREDDO               
+        RSTCOLD=1
+    ELSE
+        HSEROUT ["AT+CGPSRST=1",13]                    
+    ENDIF
+    HSERIN 2000,ERRORE,[WAIT ("OK")]
+    PAUSE 1000
+    GPSACCESO=1  
+RETURN 
+
+
+GPSOFF:
+    SEROUT2 TXPC,6,["GPSOFF",13,10 ] 
+    HSEROUT ["AT+CGPSPWR=0",13]                
+    HSERIN 2000,ERRORE,[WAIT ("OK")]
+    PAUSE 1000
+    GPSACCESO=0
+RETURN
+
+
+ERRORE:
+
+    SEROUT2 TXPC,6,[ "ERRORE",13,10]
+    HSEROUT ["AT+CPOWD=0",13]  'spengo il modulo
+    pause 5000  
+    
+    GOTO START
+END
+
+
+MEMOEMAIL:
+    FOR TMP=0 TO LUNGEMAIL
+        SEROUT2 TXPC,6,[EMAIL[TMP]]
+    NEXT TMP
+        
+        SEROUT2 TXPC,6,[13,10]
+
+    'PAUSE 2000
+'    FOR TMP=0 TO LUNGNUM
+'        TMP1=((POSIZIONE-1)*20+TMP)
+'        WRITE TMP1,NUMERO[TMP]                             
+'    NEXT TMP
+    
+    
+'    SEROUT2 TXPC,6,[ "NUMERO SALVATO "]
+'    FOR TMP=0 TO 20
+'        TMP1=((POSIZIONE-1)*20+TMP)
+'        READ TMP1,TMPW
+'        SEROUT2 TXPC,6,[TMPW]
+'    NEXT TMP
+'    SEROUT2 TXPC,6,[13,10]
+
+
+    GOSUB CANCELLAEMAIL
+                                    
+    ADDRL=((POSIZIONE-1)*64) + ADDBASE  'OGNI POSIZIONE RICHIEDE 64 SPAZI
+
+    WHILE ((LUNGEMAIL+1)//8)<>0       'se non scrivo almeno 8 caratteri ricalcola la lunghezza perchè ciò avvenga
+        LUNGEMAIL=LUNGEMAIL+1
+        EMAIL[LUNGEMAIL]=0
+    '    SEROUT2 TXPC,6,["LUNGEMAIL     : ",#LUNGEMAIL,13,10]
+    WEND
+    
+    WHILE ((ADDRL)//64)<>0      'DEVE ESSERE 64 IN QUANTO POSSO CANCELLARE PER FORZA 64 BYTE PER VOLTA
+        ADDRL=ADDRL+1
+    '    SEROUT2 TXPC,6,["inizio     : ",#ADDRL,13,10]
+    WEND 
+    
+	For TMP1=0 TO LUNGEMAIL
+		ADDR=TMP1+ADDRL   '-1
+		DATO=EMAIL[TMP1]
+		'TBLPTRU=1   'tutte le operazione di scrittura in code avvengono nella parte altra >64k
+		WRITECODE ADDR,DATO
+		'SEROUT2 TXPC,6,["INDIRIZZO        : ",#ADDR,13,10]
+		'SEROUT2 TXPC,6,["DATO DA SCRIVERE : ",DATO,13,10]
+	Next TMP1
+	ADDRL2= ADDRL+63
+	
+	'SEROUT2 TXPC,6,["SCRITTO FINO A QUA I DATI ",#ADDR,13,10]
+	
+	For ADDRL=ADDR TO ADDRL2
+        'TBLPTRU=1   'tutte le operazione di scrittura in code avvengono nella parte altra >64k  		
+		WRITECODE ADDRL,35        'COMPLETO I RESTANTI SPAZI COL #
+'		SEROUT2 TXPC,6,["INDIRIZZO        ::",#ADDRL,13,10]
+'		SEROUT2 TXPC,6,["DATO DA SCRIVERE ::",DATO,13,10]
+	Next ADDRL
+
+    ADDRL=((POSIZIONE-1)*64) + ADDBASE  'OGNI POSIZIONE RICHIEDE 64 SPAZI
+    SEROUT2 TXPC,6,["DATO SCRITTO : "]
+	For TMP1=0 TO LUNGEMAIL
+		ADDR=TMP1+ADDRL'-1
+		READCODE ADDR,DATO
+		SEROUT2 TXPC,6,[DATO]
+	Next TMP1
+	SEROUT2 TXPC,6,[13,10]
+	
+	SEROUT2 TXPC,6,["AGGIUNTA ESEGUITA",13,10]
+
+
+RETURN
+
+CANCELLAEMAIL:
+    
+    SEROUT2 TXPC,6,[ "DEL IN POS ",#POSIZIONE,13,10]
+    'PAUSE 2000
+    For TMP1=0 TO LUNGEMAIL
+        ADDRL=((POSIZIONE-1)*64) + ADDBASE
+		ADDR=TMP1+ADDRL
+		'DATO=255
+		'TBLPTRU=1   'tutte le operazione di scrittura in code avvengono nella parte altra >64k
+		ERASECODE ADDR',DATO
+	Next TMP1
+'	SEROUT2 TXPC,6,["-CANCELLAZIONE SINGOLA ESEGUITA",13,10]
+
+RETURN
+
+LEGGIEMAIL:
+
+'    SEROUT2 txpc,6,["leggi dat[0] = ",dat[0],13,10]
+'    SEROUT2 TXPC,6,[ "CERCA IN POS ",#POSIZIONE,13,10]
+    'PAUSE 2000
+    TROVATO=0
+    TMP=0 	
+    
+       SEROUT2 TXPC,6,["MAIL:"]  
+
+    For ADDRL=ADDBASE+((POSIZIONE-1)*64) TO (ADDBASE+(POSIZIONE*64)-1)
+        'TBLPTRU=1   'tutte le operazione di scrittura in code avvengono nella parte altra >64k
+
+    	READCODE ADDRL,DATO
+    	IF DATO<>"#" and DATO<>0 and DATO<>255 THEN
+    	   email[TMP]=DATO
+    	   TMP=TMP+1
+    	   SEROUT2 TXPC,6,[DATO]   'NON TOGLIERE, VIENE USATO PER LA LETTURA DELLE EMAIL COL COMPUTER
+
+        ELSE
+            LUNGEMAIL=ADDRL- (ADDBASE+((POSIZIONE-1)*64))
+'            SEROUT2 TXPC,6,["-LUNGEZZA EMAIL ",#LUNGEMAIL,13,10]
+    	   SEROUT2 TXPC,6,[13,10]  
+
+            RETURN
+        ENDIF
+'    	IF DATO=EMAIL[0] Then
+'    		For TMP1=0 TO LUNGEMAIL
+'    			ADDR=TMP1+ADDRL'-1
+'    			READCODE ADDR,DATO
+    				
+'    				IF DATO<>EMAIL[TMP1] Then
+'    					GoTo SALTA2
+'    				EndIF
+'    		Next TMP1
+    		
+'    		SEROUT2 TXPC,6,["DATO TROVATO : "]
+'    			For TMP1=0 TO LUNGEMAIL
+'    					ADDR=TMP1+ADDRL'-1
+'    					READCODE ADDR,DATO
+'    					SEROUT2 TXPC,6,[DATO]
+'    			Next TMP1
+'    					SEROUT2 TXPC,6,[13,10]
+    
+    	'	SEROUT2 TXPC,6,["TROVATO ADDR=",#ADDR,13,10]
+    
+'    		TROVATO=1
+'    		Return
+'    	EndIF
+'SALTA2:
+    Next ADDRL  
+'    SEROUT2 txpc,6,["leggi 2 dat[0] = ",dat[0],13,10]
+RETURN
+
+
+
+
+
+
+LEGGIGPS:    
+
+SEROUT2 txpc,6,[ "LEGGIGPS",13,10]
+
+    IF GPSACCESO=0 THEN
+        GOSUB GPSON
+    ENDIF
+        
+            For TMP=0 TO 10
+            	
+            	ORA[TMP]=0
+            	'SAT[TMP]=0
+            	'NS[TMP]=0
+            	'EW[TMP]=0
+            	SPEED[TMP]=0
+            	DIR[TMP]=0
+            	DAY[TMP]=0
+            	'EWM[TMP]=0
+            	NSATGA[TMP]=0
+            	HDOP[TMP]=0
+            Next TMP
+            For TMP=0 TO 15
+            	LAT[TMP]=0	
+            	LON[TMP]=0
+            Next TMP
+            for tmp=0 to 74
+                dat[tmp]=0
+            next tmp
+            
+            GOSUB LETTURAGPS            
+            GOSUB CONVERCOORD
+            GOSUB CALCOLOVELOCITA
+            GOSUB CALCOLOALTITUDINE	
+            
+SEROUT2 txpc,6,[ "FIX  ",SAT[0],13,10]
+SEROUT2 txpc,6,[ "SAT  ",NSATGA[0],NSATGA[1],13,10]
+SEROUT2 txpc,6,[ "DA O ",DAY[0],DAY[1],"/",DAY[2],DAY[3]," - ",ORA[0],ORA[1],":",ORA[2],ORA[3],":",ORA[4],ORA[5],13,10]
+SEROUT2 txpc,6,[ "LAT F ",LAT[0],LAT[1]," ",LAT[2],LAT[3]," ",LAT[4],LAT[5],",",LAT[6],LAT[7]," / ",NS[0],13,10]
+SEROUT2 txpc,6,[ "LON F ",LON[0],LON[1],LON[2]," ",LON[3],LON[4]," ",LON[5],LON[6],",",LON[7],LON[8]," / ",EW[0],13,10]
+SEROUT2 txpc,6,[ "VEL  ", #VEL,"  Km/h",13,10]
+SEROUT2 txpc,6,[ "DIR  ", DIR[0],DIR[1],DIR[2]," g",13,10]
+SEROUT2 txpc,6,[ "ALTI ", #ALTITUDINE,13,10]
+
+RETURN
+
+LETTURAGPS:
+
+'    HSEROUT ["AT+WGPSM=0,1",13]         'ACCENDO GPS 
+'    HSERIN 2000,SETUP,[wait ("O")]
+'    PAUSE 500 
+
+'    HSEROUT ["AT+WGPSNMEA=1",13]      'RICHIEDO SULLA SERIALE DEL GPS LA STRINGA GPRMC
+'    HSERIN 2000,EXITGPS,[WAIT ("O"),TMP]
+'    PAUSE 500
+
+'    IF POWERGPS=1 THEN  'SE IL GPS è SPENTO ACCENDILO
+'        CONFGPS=0
+
+'    ENDIF    
+    IF RING=0 AND NOTIFICASQUILLO=0 THEN
+        SQUILLO=1
+        return
+    ENDIF
+    
+SEROUT2 txpc,6,[ "LETTGPS ",#TENTATIVI,13,10] 
+
+    HSEROUT ["AT+CGPSINF=2",13]   'GPGGA
+    HSERIN,3000,EXITGPS,[WAIT ("2"),STR DAT\65\42]											
+    
+SEROUT2 txpc,6,[ "LETTO GPGGA",13,10] 
+    IF RING=0 AND NOTIFICASQUILLO=0 THEN
+        'SEROUT2 txpc,6,[ "GGA RING",13,10]
+        SQUILLO=1
+        return
+    ENDIF
+
+SEROUT2 TXPC,6,[ "-$GPGGA",STR DAT\65,13,10]
+'            1            2          3         4              5
+'0123 456789 0 123456 7 890123456789 0123456789012 345 6 78 9 01234 5 678 9
+'FFFF 080520 F 091208 F 4538632008AB 00848822810CD 999 F 10 F 99999 F 360 E
+'FFFF080520,091208,4538632008N00848822810E999A99999,360 END
+
+'$GPGGA,150635.000,4538.632153,N,00848.821945,E,1,7,1.22,287.858,M,48.04
+'$GPRMC,150636.000,A,4538.632008,N,00848.822810,E,0.740,330.39,200508,,,A*5F 
+
+'LETTO GPGGA
+
+'-$GPGGA
+
+
+'2,174609,4538.624982,N,848.840619,E,0,0,99.989998,186.739716,M
+
+'LETTO GPRMC
+
+'-$GPRMC
+
+
+'32,174609.000,V,4538.624982,N,848.840619,E,0.00,0.00,051211,,E
+
+' ' PROCEDURA PER ESTRAPOLARE I COMPI DAL GPGGA
+ FOR TMP=0 TO 60
+    BUFF[TMP]=0
+ NEXT TMP
+ CONT=0
+ CONT2=0
+ CONT3=3    'LO USO PER BUFF PER MEMORIZZARE I DATI IN MEM  NEI PRIMI 3 BYTE SCRIVO IL RIFERIMENTO
+  
+For TMP=0 TO 65
+
+	IF DAT[TMP]="," Then
+		CONT=CONT+1
+		CONT2=0
+	Else
+	
+		IF CONT=7 Then
+			NSATGA[CONT2]=DAT[TMP]
+			'BUFF[CONT3]=DAT[TMP]-48
+            CONT2=CONT2+1
+            'CONT3=CONT3+1			
+		EndIF
+		
+		IF CONT=8 Then
+			HDOP[CONT2]=DAT[TMP]
+			'BUFF[CONT3]=DAT[TMP]-48
+            CONT2=CONT2+1
+            'CONT3=CONT3+1			
+		EndIF
+
+		IF CONT=9 Then
+		      '262.760 m
+			ALTIX[CONT2]=DAT[TMP]
+			CONT2=CONT2+1
+		EndIF
+	EndIF
+	
+Next TMP
+
+
+    for tmp=0 to 100
+        dat[tmp]=0
+    next tmp
+    HSEROUT ["AT+CGPSINF=32",13]   'GPRMC
+    HSERIN,3000,EXITGPS,[WAIT ("32"),STR DAT\65\42]		
+    IF RING=0 AND NOTIFICASQUILLO=0 THEN
+        SQUILLO=1
+        return
+    ENDIF   
+  SEROUT2 txpc,6,[ "LETTO GPRMC",13,10] 
+ SEROUT2 TXPC,6,[ "-$GPRMC",STR DAT\65,13,10] 
+
+     CONT=0
+     CONT2=0                        
+     CONT3=3    'LO USO PER BUFF PER MEMORIZZARE I DATI IN MEM  NEI PRIMI 3 BYTE SCRIVO IL RIFERIMENTO
+     tmp2=0     'LO USO PER SEGNALARE CHE HO TROVATO UN PUNTO
+     VELNODI=0
+     buff[CONT3]=",":CONT3=CONT3+1
+     
+'	SEROUT2 TXPC,6,[ "GPRMC BUFF " ]
+
+LATDEGMIN=0
+LATMINDEC=0
+LONDEGMIN=0
+LONMINDEC=0
+                    
+For TMP=0 TO 65
+
+	IF DAT[TMP]="," Then
+		CONT=CONT+1
+		CONT2=0
+		TMP2=0
+		IF CONT<>1 AND CONT<>2 AND CONT<>7 AND CONT<10   THEN
+            buff[CONT3]=",":CONT3=CONT3+1
+        ENDIF
+        TROVATOPUNTO=0
+	Else
+    '    SEROUT2 TXPC,6,["BUFF[CONT3] ",#buff[CONT3-1]," - DAT[TMP] ",DAT[TMP]," - CONT ",#CONT," - NORD SUD-> ",NS[0],13,10]                  
+		IF CONT=1 Then
+            IF DAT[TMP]<>"." AND TMP2=0 Then
+                buff[CONT3]=DAT[TMP]-48
+                ORA[CONT2]=DAT[TMP]			
+                CONT2=CONT2+1                  			
+                CONT3=CONT3+1
+            ELSE
+                TMP2=1
+            ENDIF
+		EndIF
+		
+		IF CONT=2 Then
+			SAT[CONT2]=DAT[TMP]
+			IF SAT[CONT2]="V" THEN
+			     HIGH LD1
+			     PAUSE 500 
+			     LOW LD1
+            ENDIF
+			IF SAT[CONT2]="A" THEN
+			     FOR TMP1=0 TO 5
+			         TOGGLE LD1
+                     PAUSE 100    
+			     NEXT TMP1
+			     LOW LD1          
+            ENDIF
+            CONT2=CONT2+1
+		EndIF
+		
+		IF CONT=3 Then
+			IF DAT[TMP]<>"." Then
+                IF TROVATOPUNTO=0 THEN
+                    LATDEGMIN=(LATDEGMIN*10)+(DAT[TMP]-48)
+                ELSE
+                    LATMINDEC=(LATMINDEC*10)+(DAT[TMP]-48)
+                ENDIF
+                             
+				buff[CONT3]=DAT[TMP]-48
+                LAT[CONT2]=DAT[TMP]
+				'	SerOut TX,2,["lat =  ",#LAT[CONT2],13,10]
+				CONT2=CONT2+1
+				IF CONT2<=9 THEN    'SALVO SOLAMENTE 9 CIFRE, L'ULTIMA LA PERDO
+                    CONT3=CONT3+1
+                ENDIF
+            ELSE
+                TROVATOPUNTO=1
+			EndIF			
+		EndIF
+		
+		IF CONT=4 Then
+            
+		    if DAT[TMP]="N" THEN
+                buff[CONT3]=0   'SALVO IL NORD COME 0
+            ELSE
+                buff[CONT3]=1   'ED IL SUD COME 1
+            ENDIF
+                
+            NS[CONT2]=DAT[TMP]
+'            SEROUT2 TXPC,6,["CONT2 ",#CONT2,13,10]
+       '     SEROUT2 TXPC,6,["0 NORD SUD-> ",NS[0],13,10]
+			CONT2=CONT2+1
+			CONT3=CONT3+1
+		EndIF
+		
+		IF CONT=5 Then
+			IF DAT[TMP]<>"." Then
+                IF TROVATOPUNTO=0 THEN
+                    LONDEGMIN=(LONDEGMIN*10)+(DAT[TMP]-48)
+                ELSE
+                    LONMINDEC=(LONMINDEC*10)+(DAT[TMP]-48)
+                ENDIF
+                
+				buff[CONT3]=DAT[TMP]-48
+                LON[CONT2]=DAT[TMP]
+				CONT2=CONT2+1
+'				SEROUT2 TXPC,6,["LON[CONT2] ",LON[CONT2],13,10]
+'				SEROUT2 TXPC,6,["CONT2 ",#CONT2,13,10]
+				
+                IF CONT2<=9 THEN    'SALVO SOLAMENTE 9 CIFRE, L'ULTIMA LA PERDO
+                    CONT3=CONT3+1  
+                ENDIF
+            ELSE
+                TROVATOPUNTO=1
+			EndIF
+			
+		EndIF
+		
+		IF CONT=6 Then
+			if DAT[TMP]="E" THEN
+                buff[CONT3]=0   'SALVO L'EST COME 0
+            ELSE
+                buff[CONT3]=1   'ED L'OVEST COME 1
+            ENDIF
+            EW[CONT2]=DAT[TMP]
+			CONT2=CONT2+1
+			CONT3=CONT3+1
+		EndIF
+		
+		
+		IF CONT=7 Then
+            IF DAT[TMP]<>"." AND TMP2=0 Then                
+                SPEED[CONT2]=DAT[TMP]                  
+                VELNODI=(VELNODI*10)+(SPEED[CONT2]-48)
+                CONT2=CONT2+1
+            ELSE
+                TMP2=1
+            ENDIF
+		EndIF
+		
+		
+		IF CONT=8 Then
+            IF DAT[TMP]<>"." AND TMP2=0 Then
+    			buff[CONT3]=DAT[TMP]-48
+                DIR[CONT2]=DAT[TMP]
+    			CONT2=CONT2+1
+    			CONT3=CONT3+1
+            ELSE
+                TMP2=1
+            ENDIF
+		EndIF
+		
+		IF CONT=9 Then
+			DAY[CONT2]=DAT[TMP]
+			CONT2=CONT2+1			
+		EndIF
+		
+		IF CONT=10 Then
+			EWM[CONT2]=DAT[TMP]
+			CONT2=CONT2+1
+		EndIF
+	
+	EndIF
+	
+
+	
+Next TMP
+
+
+    
+    
+    
+
+FOR TMP=0 TO 5
+    BUFF[CONT3]=DAY[5-TMP-1]-48
+    CONT3=CONT3+1
+    BUFF[CONT3]=DAY[5-TMP]-48
+    CONT3=CONT3+1
+    TMP=TMP+1
+NEXT TMP
+buff[CONT3]=",":CONT3=CONT3+1
+
+IF NSATGA[1]=0 THEN
+    NSAT=NSATGA[0]-48
+ELSE
+    NSAT= ((NSATGA[0]-48)*10)+(NSATGA[1]-48)
+ENDIF
+    SEROUT2 txpc,6,[ "NSAT  ",#NSAT,13,10]
+'tmp2=((NSATGA[0]-48)*10)+(NSATGA[1]-48)
+
+IF NSAT>9 THEN
+    BUFF[CONT3]=NSAT//10     
+    'SEROUT2 txpc,6,[ "SAT2  ",#buff[cont3],13,10]
+    CONT3=CONT3+1  
+      
+    BUFF[CONT3]=NSAT-(BUFF[CONT3]*10)
+    CONT3=CONT3+1 
+ELSE
+    BUFF[CONT3]=NSAT
+    CONT3=CONT3+1               
+ENDIF
+
+'SEROUT2 txpc,6,[ "SAT1  ",#buff[cont3],13,10]
+
+
+buff[CONT3]=",":CONT3=CONT3+1
+GOSUB CALCOLOVELOCITA
+IF VEL<10 THEN
+    BUFF[CONT3]=VEL:CONT3=CONT3+1
+'    SEROUT2 txpc,6,[ "VEL UNI  ",#buff[cont3],13,10]
+ELSE
+    IF VEL<100 THEN
+        BUFF[CONT3]=VEL/10:CONT3=CONT3+1    'DEC
+'        SEROUT2 txpc,6,[ "VEL DEC  ",#buff[cont3-1],13,10]
+        BUFF[CONT3]=VEL-(BUFF[CONT3-1]*10):CONT3=CONT3+1       'UNI
+'        SEROUT2 txpc,6,[ "VEL UNI  ",#buff[cont3-1],13,10]
+        
+    ELSE
+        BUFF[CONT3]=VEL/100:CONT3=CONT3+1   'CEN
+'        SEROUT2 txpc,6,[ "VEL CENT  ",#buff[cont3-1],13,10]
+        BUFF[CONT3]=(VEL-(BUFF[CONT3-1]*100))/10:CONT3=CONT3+1    'DEC
+'        SEROUT2 txpc,6,[ "VEL DEC  ",#buff[cont3-1],13,10]
+        BUFF[CONT3]=((VEL-(BUFF[CONT3-2]*100))-(BUFF[CONT3-1]*10)):CONT3=CONT3+1       'UNI   
+'        SEROUT2 txpc,6,[ "VEL UNI  ",#buff[cont3-1],13,10] 
+    ENDIF
+ENDIF
+buff[CONT3]=",":CONT3=CONT3+1
+
+
+GOSUB CALCOLOALTITUDINE
+
+
+buff[CONT3]=$F:CONT3=CONT3+1 'FINE STRINGA
+LUNGDATO=CONT3
+
+SEROUT2 TXPC,6,[ "BUFF " ]
+FOR TMP=0 TO LUNGDATO
+    SEROUT2 TXPC,6,[#BUFF[TMP]]
+NEXT TMP
+SEROUT2 TXPC,6,[13,10 ]
+
+  
+
+EXITGPS:
+
+Return
+
+CALCOLOVELOCITA:
+
+	VEL= (VELNODI * 1852)/1000		'1 KNODO = 1,852 KM/h
+	
+        
+
+RETURN
+
+CALCOLOALTITUDINE:
+
+    CONT2=0
+	CONTP=0
+	For TMP=9 TO 0 STEP -1
+	'DEBUG "SPEED ",#CONT2," =  ",#SPEED[CONT2],13,10
+			IF CONTP=1 Then
+				ALTI[CONT2]=ALTIX[TMP]
+				'SEROUT2 TXPC,6,[ "ALTI[CONT2] ",ALTI[CONT2],13,10 ]
+				CONT2=CONT2+1                                         				
+			EndIF
+			IF ALTIX[TMP]="." Then			' SERVE PER INIZIARE A MEMORIZZARE I DATI DOPO AVER RICEVUTO IL PUNTO
+				CONTP=1
+				CONT2=0
+				TMP2=TMP-1  'LUNGHEZZA NUMERO
+				'SEROUT2 TXPC,6,[ "LUNGHEZZA ALTI ",#TMP2,13,10 ]
+			EndIF
+	Next TMP
+	ALTITUDINE=0
+    For TMP=0 TO TMP2
+    	ALTI[TMP]=ALTI[TMP] - 48
+    	
+    	BUFF[CONT3+(TMP2-TMP)]=ALTI[TMP]
+        SELECT CASE TMP
+            CASE 1
+                ALTI[TMP]=ALTI[TMP]*10
+            CASE 2
+                ALTI[TMP]=ALTI[TMP]*100
+            CASE 3
+                ALTI[TMP]=ALTI[TMP]*1000
+            CASE 4
+                ALTI[TMP]=ALTI[TMP]*10000
+            CASE 5
+                ALTI[TMP]=ALTI[TMP]*100000
+        END SELECT        
+        ALTITUDINE=ALTITUDINE+ALTI[TMP]
+        '  SEROUT2 TXPC,6,[ "ALTITUDINE ",#ALTITUDINE,13,10 ]
+        IF  ALTI[TMP]<0 OR ALTI[TMP] > 9 Then
+        	ALTI[TMP]=0
+        EndIF         
+    Next
+    CONT3=CONT3+TMP2+1
+RETURN
+
+
+CONVERCOORD:
+'SEROUT2 TXPC,6,["3 NORD SUD-> ",NS[0],13,10]
+
+SEROUT2 txpc,6,[ "LAT ",#LATDEGMIN,".",#LATMINDEC,13,10]
+SEROUT2 txpc,6,[ "LON ",#LONDEGMIN,".",#LONMINDEC,13,10]
+
+
+SEROUT2 txpc,6,[ "LAT F ",LAT[0],LAT[1]," ",LAT[2],LAT[3]," ",LAT[4],LAT[5],",",LAT[6],LAT[7]," / ",NS[0],13,10]
+SEROUT2 txpc,6,[ "LON F ",LON[0],LON[1],LON[2]," ",LON[3],LON[4]," ",LON[5],LON[6],",",LON[7],LON[8]," / ",EW[0],13,10]
+
+'DDLAT=((LAT[0]-48)*10)+(LAT[1]-48)
+'MM=((LAT[2]-48)*10)+(LAT[3]-48)
+'SS=((LAT[4]-48)*10)+(LAT[5]-48)
+'ddd=((LAT[6]-48)*10)+(LAT[7]-48)
+'LAT 4538.642156
+
+
+DDLAT=LATDEGMIN/100
+MM=LATDEGMIN-(DDLAT*100)
+SS=LATMINDEC/10000
+ddd=LATMINDEC-(SS*10000)
+
+
+SEROUT2 txpc,6,[ "LAT dd ",DEC DDLAT," ",DEC MM," ",DEC SS," ",DEC DDD,13,10]
+
+LATddddd=((MM*1000000)+(SS*10000)+ddd)/6
+'            933333                   7380      =940713
+IF NS[0]="N" THEN
+    SIGNLAT="+"
+ELSE
+    SIGNLAT="-"
+ENDIF
+'SEROUT2 txpc,6,[ "LAT DECIMALI ",SIGNLAT,DEC2 DDLAT,".",DEC7 LATddddd,13,10]
+
+'DDLON=(((LON[0]-48)*100)+(LON[1]-48)*10)+(LON[2]-48)
+'MM=((LON[3]-48)*10)+(LON[4]-48)
+'SS=((LON[5]-48)*10)+(LON[6]-48)
+'ddd=((LON[7]-48)*10)+(LON[8]-48)
+'LONddddd=((MM*1000000)+(SS*10000)+(ddd*100))/6
+'            933333                   7380      =940713
+'LON 848.849309
+
+DDLON=LONDEGMIN/100
+MM=LONDEGMIN-(DDLON*100)
+SS=LONMINDEC/10000
+ddd=LONMINDEC-(SS*10000)
+
+
+SEROUT2 txpc,6,[ "LON dd ",DEC DDLON," ",DEC MM," ",DEC SS," ",DEC DDD,13,10]
+
+LONddddd=((MM*1000000)+(SS*10000)+(ddd*100))/6
+
+IF Ew[0]="E" THEN
+    SIGNLON="+"
+ELSE
+    SIGNLON="-"
+ENDIF
+SEROUT2 txpc,6,[ "COORD DEC :",SIGNLAT,DEC DDLAT,"."]
+IF LATddddd<100000 THEN
+    SEROUT2 txpc,6, ["00"]
+ELSE
+    IF LATddddd<1000000 THEN
+        SEROUT2 txpc,6, ["0"]
+    ENDIF                                    
+ENDIF                                  
+SEROUT2 txpc,6, [DEC LATddddd,",",SIGNLON,DEC DDLON,"."]
+
+IF LONddddd<100000 THEN
+    SEROUT2 txpc,6, ["00"]
+ELSE
+    IF LONddddd<1000000 THEN
+        SEROUT2 txpc,6, ["0"]
+    ENDIF                                    
+ENDIF                                  
+SEROUT2 txpc,6, [DEC LONddddd,13,10]
+
+   
+
+RETURN
+
+
+
+
+'BASE64CONV:
+
+''INTCON3.5=0    
+'    'SEROUT2 TXPC,6,["LUNGNUM PRIMA ",#LUNGNUM,13,10]
+'        WHILE (LUNGNUM+1)//3<>0 
+'                LUNGNUM=LUNGNUM+1
+'                BUFF[LUNGNUM]=0
+'        WEND
+    
+'    'SEROUT2 TXPC,6,["LUNGNUM DOPO  ",#LUNGNUM,13,10]
+    
+'    FOR TMP=0 TO LUNGNUM-TMP4
+        
+'        TMP1=BUFF[TMP]
+'        TMP=TMP+1
+'        TMP2=BUFF[TMP]
+'        TMP=TMP+1
+'        TMP3=BUFF[TMP]
+    
+        
+'        SEROUT2 TXPC,6,[TMP1,TMP2,TMP3,32]
+'        'SEROUT2 TXPC,6,[BIN8 TMP1,32,BIN8 TMP2,32,BIN8 TMP3,13,10] 
+'        TMPL=TMP1>>2
+'        'SEROUT2 TXPC,6,[BIN6 tmpl,32]
+'        GOSUB BASE64ABB
+'        SEROUT2 TXPC,6,[tmpl1]
+'        HSEROUT [tmpl1]
+'        TMPL=TMP2>>4
+'        tmpl.4=tmp1.0
+'        tmpl.5=tmp1.1
+'        'SEROUT2 TXPC,6,[BIN6 tmpl,32]
+'        GOSUB BASE64ABB
+'        SEROUT2 TXPC,6,[tmpl1]
+'        HSEROUT [tmpl1]
+'        IF TMP2<>0 THEN
+'            tmpl=tmp2<<4
+'            tmpl.3=tmp3.7
+'            tmpl.2=tmp3.6
+'            tmpl=tmpl>>2
+'            'SEROUT2 TXPC,6,[BIN6 tmpl,32]
+'            GOSUB BASE64ABB
+'            SEROUT2 TXPC,6,[tmpl1]
+'            HSEROUT [tmpl1]
+'        ELSE
+'            SEROUT2 TXPC,6,["="]
+'            HSEROUT ["="]
+'        ENDIF
+'        IF TMP3<>0 THEN
+'            tmpl=tmp3 & %00111111
+'            'SEROUT2 TXPC,6,[BIN6 tmpl,32]
+'            GOSUB BASE64ABB
+'            SEROUT2 TXPC,6,[tmpl1]
+'            HSEROUT [tmpl1]
+'        ELSE
+'            SEROUT2 TXPC,6,["="]
+'            HSEROUT ["="]
+'        ENDIF
+'        SEROUT2 TXPC,6,[13,10]
+'    NEXT TMP
+'    SEROUT2 TXPC,6,[13,10] 
+'    HSEROUT [13,10] 
+    
+    
+'RETURN
+
+
+'BASE64ABB:
+'    LOOKUP tmpl,["ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"],tmpl1
+''INTCON3.5=1
+'RETURN
+
+
+
+
+
+
+
+
+
+
+
+
+' Rilevato pulsante premuto
+Disable                     
+'PULSANTI:
+
+
+
+''    IF LOWPOWER=1 THEN
+''        GOSUB SVEGLIA
+''    ENDIF
+    
+''asm
+'' movwf _W_TEMP   ; Salvo W in W_TEMP
+'' swapf STATUS,W  ; Metto STATUS in W
+'' clrf STATUS   ; Seleziono banco 0, indipendentemente dal banco corrente. 
+''          ; Clears IRP, RP1, RP0
+'' movwf _STATUS_TEMP  ; metto STATUS (contenuto in W) in STATUS_TEMP
+'' movf PCLATH,W  ; Salvo PCLATH
+'' movwf _PCLATH_TEMP  ; in PCLATH_TEMP
+'' clrf PCLATH   ; seleziono la pagina 0
+''endasm
+''STATUS_TEMP= STATUS
+''PCLATH_TEMP= PCLATH
+'    'SEROUT2 TXPC,6,[ "INTCON  ",bin8 INTCON,13,10 ]
+'    'SEROUT2 TXPC,6,[ "INTCON2 ",bin8 INTCON2,13,10 ]
+'    'SEROUT2 TXPC,6,[ "INTCON3 ",bin8 INTCON3,13,10 ]
+'    'pause 5000
+'   IF INTCON3.0=1 THEN              'IL PULSANTE 1 INVIA LE MAIL CON LE COORDINATE
+''    INTCON  01010001
+''    INTCON2 00000010    
+''    INTCON3 11111001
+'        SEROUT2 TXPC,6,[ "-P1 PREMUTO",13,10 ] 
+''        SEROUT2 TXPC,6,[ "ABILITO INTERRUPT SU RB",13,10 ] 
+''        INTCON      = %10011000
+'        RITENTA=1       'IMPOSTANDO RITENTA=1 INVIA LE COORDINATE FINO A QUANDO NON SAREANNO DISPONIBILI
+'        PULSOUT LD1,10000
+'        INTCON3.0=0
+'   ENDIF
+'   IF INTCON.1=1 THEN
+''    INTCON  01010011    
+''    INTCON2 00000010    
+''    INTCON3 11111000
+        
+'        SEROUT2 TXPC,6,[ "-P2 PREMUTO",13,10 ]         
+'        PULSOUT LD1,10000
+''        HSEROUT ["AT+CCLK=",34,"01/01/01,00:00:00+00",34,13]      'ORA
+''        PAUSE 500
+''        READ 703,TMP
+''        IF TMP=0 THEN
+''            SEROUT2 TXPC,6,[ "ATTIVO IL POLLING",13,10 ]
+''            WRITE 703,1     'ATTIVO IL POLLING             
+''        ELSE
+''            SEROUT2 TXPC,6,[ "DISATTIVO IL POLLING",13,10 ]
+''            WRITE 703,0     'DISATTIVO IL POLLING
+''        ENDIF
+'         INTCON.1=0
+'   ENDIF
+'   IF INTCON3.1=1 THEN
+''    INTCON  01010001
+''    INTCON2 00000010    
+''    INTCON3 11111010
+'        SEROUT2 TXPC,6,[ "-P3 PREMUTO",13,10 ]         
+'        PULSOUT LD1,10000
+''        READ 705,TMP
+''        IF TMP=2 THEN
+''            WRITE 705,30
+''            FOR TMP=1 TO 10
+''                TOGGLE LD1
+''                PAUSE 200
+''            NEXT TMP
+''        ELSE
+''            WRITE 705,2
+''            FOR TMP=1 TO 3
+''                TOGGLE LD1
+''                PAUSE 200
+''            NEXT TMP
+''        ENDIF
+        
+'        INTCON3.1=0
+'   ENDIF
+'   IF INTCON3.2=1 THEN
+'        SEROUT2 TXPC,6,[ "-SENSORE",13,10 ]         
+'        PULSOUT LD1,10000        
+'        SENSORE=1
+''        SEROUT2 TXPC,6,[ "DISABILITO INTERRUPT SU RB",13,10 ] 
+''        INTCON      = %10010000
+'         INTCON3.2=0
+'         INTCON3.5=0    'disabilito il sensore
+         
+'   ENDIF
+   
+   
+'   'INTCON      = %10010000             ' Tacita interrupt flag
+'   'INTCON3     = %11111000
+   
+   
+''ASM
+''movf _PCLATH_TEMP,W  ; Recupero PCLATH
+''movwf PCLATH   ;
+''swapf _STATUS_TEMP,W  ; Recupero STATUS (cioè riseleziono i banchi come erano prima)
+''movwf STATUS   ;
+''swapf _W_TEMP,F  ; Recupero W
+''swapf _W_TEMP,W  ;
+''ENDASM
+
+''STATUS= STATUS_TEMP 
+''PCLATH= PCLATH_TEMP
+
+'Resume                      
+disable 
+PULSANTI:
+
+
+PULSANTE=0
+
+'    IF LOWPOWER=1 THEN
+'        GOSUB SVEGLIA
+'    ENDIF
+    
+'asm
+' movwf _W_TEMP   ; Salvo W in W_TEMP
+' swapf STATUS,W  ; Metto STATUS in W
+' clrf STATUS   ; Seleziono banco 0, indipendentemente dal banco corrente. 
+'          ; Clears IRP, RP1, RP0
+' movwf _STATUS_TEMP  ; metto STATUS (contenuto in W) in STATUS_TEMP
+' movf PCLATH,W  ; Salvo PCLATH
+' movwf _PCLATH_TEMP  ; in PCLATH_TEMP
+' clrf PCLATH   ; seleziono la pagina 0
+'endasm
+'STATUS_TEMP= STATUS
+'PCLATH_TEMP= PCLATH
+    'SEROUT2 TXPC,6,[ "INTCON  ",bin8 INTCON,13,10 ]
+    'SEROUT2 TXPC,6,[ "INTCON2 ",bin8 INTCON2,13,10 ]
+    'SEROUT2 TXPC,6,[ "INTCON3 ",bin8 INTCON3,13,10 ]
+    'pause 5000
+   IF INTCON3.0=1 THEN              'IL PULSANTE 1 INVIA LE MAIL CON LE COORDINATE
+'    INTCON  01010001
+'    INTCON2 00000010    
+'    INTCON3 11111001
+        IF LD1=1 THEN
+            LOW LD1
+            PAUSE 500
+        ENDIF
+        high ld1
+        SEROUT2 TXPC,6,[ "P1",13,10 ] 
+      
+        WHILE PULSANTE<200 AND P1=0
+            PULSANTE=PULSANTE+1
+            PAUSE 10        
+        WEND       
+        IF PULSANTE<199 THEN
+            PULSANTE=10
+            HIGH LD1
+            PAUSE 1000
+            LOW LD1
+        ELSE
+            PULSANTE=11
+            READ 700,tmp
+            if tmp=0 then
+                SEROUT2 TXPC,6,["ATTIVO L'INVIO SU MOVE E ACCENDO IL LED VERDE",13,10]
+                write 700,1     'ATTIVO L'INVIO SU MOVE E ACCENDO IL LED VERDE
+                FOR TMP=0 TO 10
+                    TOGGLE LD2
+                    PAUSE 50
+                NEXT TMP
+                LOW LD2
+            else
+                SEROUT2 TXPC,6,["DISATTIVO L'INVIO SU MOVE E ACCENDO IL LED ROSSO",13,10]
+                write 700,0     'DISATTIVO L'INVIO SU MOVE E ACCENDO IL LED ROSSO
+                FOR TMP=0 TO 10
+                    TOGGLE LD1
+                    PAUSE 50
+                NEXT TMP
+                LOW LD1 
+            ENDIF 
+        ENDIF
+        low ld1
+        INTCON3.0=0 
+   ENDIF
+
+
+Resume                      
+Enable 
+
+
+
